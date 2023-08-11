@@ -1,12 +1,12 @@
 #!/usr/bin/env nextflow
 
-params.input              = "" //$baseDir/data/NUP62.aa.fa
-params.output             = "" //$baseDir/result
+params.input              = "$baseDir/data/NUP62.aa.fa" //$baseDir/data/NUP62.aa.fa
+params.output             = "$baseDir/result" //$baseDir/result
 
 params.thread             = 4
 params.aligner            = "mafft" //tcoffee clustalo
 params.trimmer            = "trimal"
-params.tree_builder       = "iqtree" //raxml phyml
+params.tree_builder       = "fasttree" //raxml phyml
 
 input_seqs   = file(params.input)
 output_file  = params.output
@@ -103,21 +103,22 @@ process build {
 
 }
 
-// process wrap {
-//     input:
-//     file input from clean_aln_seqs
-//     file output from output_tree
+// New process to organize outputs
+process organize_outputs {
+    output:
+    file 'final_output.txt'
 
-//     output:
-//     stdout result
+    script:
+    """
+    mkdir -p ${output_file}/${aln_mode}-${trim_mode}-${builder_mode}
+    mv ${aln_mode}-${trim_mode}-${builder_mode}/* ${output_file}/${aln_mode}-${trim_mode}-${builder_mode}/
+    echo "Organized outputs"
+    touch final_output.txt
+    """
+}
 
-//     script:
-//     """
-//     cp ${input} ${output_file}
-//     cp ${output} ${output_file}
-//     """
-
-// }
-
+workflow {
+    align | trim | build | organize_outputs
+}
 // result.view { it.trim() }
 //result.subscribe { println it }
