@@ -1,0 +1,4 @@
+Longest sequence: 1691 characters
+Total sequences: 25
+Average sequence length: 1358.04
+No duplicated names found.

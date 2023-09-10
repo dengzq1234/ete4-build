@@ -1,0 +1,29 @@
+FastTree Version 2.1.11 Double precision (No SSE3)
+Alignment: NUP62.aa.clean.alg.faa
+Amino acid distances: BLOSUM45 Joins: balanced Support: SH-like 1000
+Search: Normal +NNI +SPR (2 rounds range 10) +ML-NNI opt-each=1
+TopHits: 1.00*sqrtN close=default refresh=0.80
+ML Model: Jones-Taylor-Thorton, CAT approximation with 20 rate categories
+Ignored unknown character X (seen 4 times)
+Initial topology in 0.01 seconds
+Refining topology: 19 rounds ME-NNIs, 2 rounds ME-SPRs, 9 rounds ML-NNIs
+Total branch-length 1.431 after 0.08 sec
+      0.16 seconds: ML NNI round 1 of 9, 1 of 23 splits
+ML-NNI round 1: LogLk = -5502.860 NNIs 6 max delta 8.97 Time 0.42
+      0.43 seconds: Site likelihoods with rate category 1 of 20
+      0.53 seconds: Site likelihoods with rate category 16 of 20
+Switched to using 20 rate categories (CAT approximation)
+Rate categories were divided by 0.770 so that average rate = 1.0
+CAT-based log-likelihoods may not be comparable across runs
+Use -gamma for approximate but comparable Gamma(20) log-likelihoods
+ML-NNI round 2: LogLk = -5172.424 NNIs 2 max delta 9.83 Time 0.81
+      0.80 seconds: ML NNI round 3 of 9, 1 of 23 splits
+ML-NNI round 3: LogLk = -5168.596 NNIs 1 max delta 3.58 Time 0.97
+      0.96 seconds: ML NNI round 4 of 9, 1 of 23 splits
+ML-NNI round 4: LogLk = -5167.092 NNIs 1 max delta 1.38 Time 1.04
+ML-NNI round 5: LogLk = -5167.091 NNIs 0 max delta 0.00 Time 1.06
+Turning off heuristics for final round of ML NNIs (converged)
+ML-NNI round 6: LogLk = -5167.040 NNIs 0 max delta 0.00 Time 1.32 (final)
+      1.31 seconds: ML Lengths 1 of 23 splits
+Optimize all lengths: LogLk = -5167.039 Time 1.38
+Total time: 1.60 seconds Unique: 25/25 Bad splits: 0/22

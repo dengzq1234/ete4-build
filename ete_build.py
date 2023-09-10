@@ -1,18 +1,87 @@
 #!/usr/bin/env python
 
-import nextflow
+import argparse
+import os
+import sys
+#import nextflow
+import subprocess
 
-# pipeline = nextflow.Pipeline("main.nf")
-# execution = pipeline.run(params={"param1": "123"})
-# print(execution.status)
+def generate_nextflow_config(execution_mode, partition=None, time=None, memory=None, cpus=None):
+    if execution_mode == "slurm":
+        config_content = f"""
+profiles {{
+    slurm {{
+        process {{
+            executor = 'slurm'
+            queue = '{partition}'
+            time = '{time}'
+            memory = '{memory}'
+            cpus = {cpus}
+        }}
+    }}
+}}
+"""
+    elif execution_mode == "local":
+        config_content = """
+profiles {
+    local {
+        process {
+            executor = 'local'
+        }
+    }
+}
+"""
+    else:
+        raise ValueError(f"Unsupported execution mode: {execution_mode}")
 
-pipeline = nextflow.Pipeline('ete_build.nf')
-execution = pipeline.run(params={
-    "input": "../example.fasta",
-    "output":"/home/deng/Projects/nextflow_projects/example_output/",
-    "aligner": "mafft",
-    "trimmer": "trimal",
-    "tree_builder":"fasttree"
-})
+    with open("nextflow.config", "w") as f:
+        f.write(config_content)
 
-print(execution.status)
+def run_nextflow(mode, input_file, output_dir, aligner, trimmer, tree_builder):
+    generate_nextflow_config(mode)
+    script = "ete_build_dsl2.nf"
+    cmd = [
+        "nextflow", "run", script,
+        "-ansi-log", "false",
+        "--input", input_file,
+        "--output", output_dir,
+        "--aligner", aligner,
+        "--trimmer", trimmer,
+        "--tree_builder", tree_builder
+    ]
+    
+    process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    while True:
+        output = process.stdout.readline()
+        if output == '' and process.poll() is not None:
+            break
+        if output:
+            print(output.strip())
+    return_code = process.poll()
+    return return_code
+    
+
+def main():
+    parser = argparse.ArgumentParser(description="Run Nextflow workflow.")
+    parser.add_argument("--mode", default='local', choices=["local", "slurm"], required=True, help="Execution mode: local or slurm.")
+    parser.add_argument("--partition", help="SLURM partition name (required if mode is slurm).")
+    parser.add_argument("--time", default="1h", help="Time limit for SLURM jobs (only if mode is slurm).")
+    parser.add_argument("--memory", default="4GB", help="Memory allocation for SLURM jobs (only if mode is slurm).")
+    parser.add_argument("--cpus", type=int, default=4, help="Number of CPUs for SLURM jobs (only if mode is slurm).")
+    #parser.add_argument("--script", default="workflow.nf", help="Path to the Nextflow script to run.")
+    parser.add_argument("--input", required=True, help="Input fasta file or directory.")
+    parser.add_argument("--output", required=True, help="Output directory.")
+    parser.add_argument("--aligner", default="mafft", help="Alignment tool.")
+    parser.add_argument("--trimmer", default="trimal", help="Trimming tool.")
+    parser.add_argument("--tree_builder", default="fasttree", help="Tree building tool.")
+    
+    args = parser.parse_args()
+    
+    # Validate SLURM-specific arguments
+    if args.mode == "slurm" and not args.partition:
+        parser.error("--partition is required when mode is slurm.")
+    
+    run_nextflow(args.mode, args.input, args.output, args.aligner, args.trimmer, args.tree_builder)
+
+if __name__ == "__main__":
+    main()
