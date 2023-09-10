@@ -11,7 +11,7 @@ Gap Penalty = -1.53, +0.00, +0.00
 
 
 Making a distance matrix ..
-    1 / 8 (thread    1)
+    1 / 8 (thread    0)
 done.
 
 Constructing a UPGMA tree (efffree=0) ... 
@@ -19,7 +19,7 @@ Constructing a UPGMA tree (efffree=0) ...
 done.
 
 Progressive alignment 1/2... 
-STEP     1 / 7 (thread    0) fSTEP     2 / 7 (thread    2) fSTEP     3 / 7 (thread    3) fSTEP     4 / 7 (thread    1) fSTEP     5 / 7 (thread    0) fSTEP     6 / 7 (thread    2) fSTEP     7 / 7 (thread    3) f
+STEP     1 / 7 (thread    2) fSTEP     2 / 7 (thread    0) fSTEP     3 / 7 (thread    3) fSTEP     4 / 7 (thread    2) fSTEP     5 / 7 (thread    1) fSTEP     6 / 7 (thread    0) fSTEP     7 / 7 (thread    3) f
 done.
 
 Making a distance matrix from msa.. 
@@ -31,7 +31,7 @@ Constructing a UPGMA tree (efffree=1) ...
 done.
 
 Progressive alignment 2/2... 
-STEP     1 / 7 (thread    0) fSTEP     2 / 7 (thread    2) fSTEP     3 / 7 (thread    1) fSTEP     4 / 7 (thread    3) fSTEP     5 / 7 (thread    0) fSTEP     6 / 7 (thread    2) fSTEP     7 / 7 (thread    1) f
+STEP     1 / 7 (thread    1) fSTEP     2 / 7 (thread    0) fSTEP     3 / 7 (thread    3) fSTEP     4 / 7 (thread    2) fSTEP     5 / 7 (thread    1) fSTEP     6 / 7 (thread    0) fSTEP     7 / 7 (thread    3) f
 done.
 
 disttbfast (aa) Version 7.520

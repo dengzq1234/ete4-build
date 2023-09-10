@@ -37,9 +37,9 @@ profiles {
     with open("nextflow.config", "w") as f:
         f.write(config_content)
 
-def run_nextflow(mode, input_file, output_dir, aligner, trimmer, tree_builder):
+def run_nextflow(mode, input_file, output_dir, aligner, trimmer, tree_builder, resume=False, script="ete_build_dsl2.nf"):
     generate_nextflow_config(mode)
-    script = "ete_build_dsl2.nf"
+    #script = "ete_build_dsl2.nf"
     cmd = [
         "nextflow", "run", script,
         "-ansi-log", "false",
@@ -50,6 +50,9 @@ def run_nextflow(mode, input_file, output_dir, aligner, trimmer, tree_builder):
         "--tree_builder", tree_builder
     ]
     
+    if resume:
+        cmd.append("-resume")
+
     process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     while True:
         output = process.stdout.readline()
@@ -68,20 +71,21 @@ def main():
     parser.add_argument("--time", default="1h", help="Time limit for SLURM jobs (only if mode is slurm).")
     parser.add_argument("--memory", default="4GB", help="Memory allocation for SLURM jobs (only if mode is slurm).")
     parser.add_argument("--cpus", type=int, default=4, help="Number of CPUs for SLURM jobs (only if mode is slurm).")
-    #parser.add_argument("--script", default="workflow.nf", help="Path to the Nextflow script to run.")
+    parser.add_argument("--script", default="ete_build_dsl2.nf", help="Path to the Nextflow script to run.")
     parser.add_argument("--input", required=True, help="Input fasta file or directory.")
     parser.add_argument("--output", required=True, help="Output directory.")
     parser.add_argument("--aligner", default="mafft", help="Alignment tool.")
     parser.add_argument("--trimmer", default="trimal", help="Trimming tool.")
     parser.add_argument("--tree_builder", default="fasttree", help="Tree building tool.")
-    
+    parser.add_argument("--resume", action="store_true", help="Resume from the last failed step.")
+
     args = parser.parse_args()
     
     # Validate SLURM-specific arguments
     if args.mode == "slurm" and not args.partition:
         parser.error("--partition is required when mode is slurm.")
     
-    run_nextflow(args.mode, args.input, args.output, args.aligner, args.trimmer, args.tree_builder)
+    run_nextflow(args.mode, args.input, args.output, args.aligner, args.trimmer, args.tree_builder, args.resume, args.script)
 
 if __name__ == "__main__":
     main()

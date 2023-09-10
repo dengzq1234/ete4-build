@@ -5,29 +5,30 @@ Search: Normal +NNI +SPR (2 rounds range 10) +ML-NNI opt-each=1
 TopHits: 1.00*sqrtN close=default refresh=0.80
 ML Model: Jones-Taylor-Thorton, CAT approximation with 20 rate categories
 WARNING! 100.0% NUCLEOTIDE CHARACTERS -- IS THIS REALLY A PROTEIN ALIGNMENT?
-Initial topology in 0.02 seconds
+Initial topology in 0.03 seconds
 Refining topology: 19 rounds ME-NNIs, 2 rounds ME-SPRs, 9 rounds ML-NNIs
-      0.13 seconds: ME NNI round 7 of 19, 1 of 23 splits
-Total branch-length 1.566 after 0.24 sec
-      0.23 seconds: ML Lengths 1 of 23 splits
-      0.43 seconds: ML NNI round 1 of 9, 1 of 23 splits
-ML-NNI round 1: LogLk = -18780.482 NNIs 5 max delta 14.27 Time 1.12
-      1.14 seconds: Site likelihoods with rate category 1 of 20
-      1.24 seconds: Site likelihoods with rate category 6 of 20
-      1.35 seconds: Site likelihoods with rate category 12 of 20
-      1.47 seconds: Site likelihoods with rate category 18 of 20
+      0.20 seconds: ME NNI round 7 of 19, 1 of 23 splits
+      0.31 seconds: ME NNI round 13 of 19, 1 of 23 splits
+Total branch-length 1.566 after 0.33 sec
+      0.63 seconds: ML NNI round 1 of 9, 1 of 23 splits
+ML-NNI round 1: LogLk = -18780.482 NNIs 5 max delta 14.27 Time 1.52
+      1.54 seconds: Site likelihoods with rate category 1 of 20
+      1.67 seconds: Site likelihoods with rate category 5 of 20
+      1.78 seconds: Site likelihoods with rate category 9 of 20
+      1.89 seconds: Site likelihoods with rate category 14 of 20
+      2.00 seconds: Site likelihoods with rate category 19 of 20
 Switched to using 20 rate categories (CAT approximation)
 Rate categories were divided by 0.775 so that average rate = 1.0
 CAT-based log-likelihoods may not be comparable across runs
 Use -gamma for approximate but comparable Gamma(20) log-likelihoods
-ML-NNI round 2: LogLk = -17744.471 NNIs 5 max delta 7.36 Time 2.01
-      2.00 seconds: ML NNI round 3 of 9, 1 of 23 splits
-ML-NNI round 3: LogLk = -17733.720 NNIs 3 max delta 5.96 Time 2.40
-      2.40 seconds: ML NNI round 4 of 9, 1 of 23 splits
-ML-NNI round 4: LogLk = -17733.675 NNIs 0 max delta 0.00 Time 2.55
+ML-NNI round 2: LogLk = -17744.471 NNIs 5 max delta 7.36 Time 2.59
+      2.58 seconds: ML NNI round 3 of 9, 1 of 23 splits
+ML-NNI round 3: LogLk = -17733.720 NNIs 3 max delta 5.96 Time 3.05
+      3.04 seconds: ML NNI round 4 of 9, 1 of 23 splits
+ML-NNI round 4: LogLk = -17733.675 NNIs 0 max delta 0.00 Time 3.21
 Turning off heuristics for final round of ML NNIs (converged)
-      2.55 seconds: ML NNI round 5 of 9, 1 of 23 splits
-ML-NNI round 5: LogLk = -17733.351 NNIs 0 max delta 0.00 Time 3.19 (final)
-      3.19 seconds: ML Lengths 1 of 23 splits
-Optimize all lengths: LogLk = -17733.351 Time 3.39
-Total time: 3.90 seconds Unique: 25/25 Bad splits: 0/22
+      3.21 seconds: ML NNI round 5 of 9, 1 of 23 splits
+ML-NNI round 5: LogLk = -17733.351 NNIs 0 max delta 0.00 Time 4.03 (final)
+      4.03 seconds: ML Lengths 1 of 23 splits
+Optimize all lengths: LogLk = -17733.351 Time 4.27
+Total time: 4.87 seconds Unique: 25/25 Bad splits: 0/22
