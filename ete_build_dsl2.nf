@@ -78,16 +78,31 @@ process align {
     script:
     fasta_name = fasta_file.baseName
     """
+    num_sequences=\$(grep -c '^>' $fasta_file)
     start_time=\$(date +%s)
     if [[ "${params.aligner}" == 'mafft' ]]; then
         echo "run mafft!"
         mafft --anysymbol --thread ${params.thread} $fasta_file > ${fasta_name}.aln.faa 2> align.err
+    elif [[ "${params.aligner}" == "muscle" ]]; then
+        echo "run muscle!"
+        muscle -in $fasta_file -out ${fasta_name}.aln.faa 2> align.err
     elif [[ "${params.aligner}" == "tcoffee" ]]; then
         echo "run tcoffee!"
         t_coffee -cpu ${params.thread} -seq $fasta_file -output fasta_aln -outfile ${fasta_name}.aln.faa 2> align.err
     elif [[ "${params.aligner}" == "clustalo" ]]; then
         echo "run clustalo!"
         clustalo --threads ${params.thread} --in $fasta_file -o ${fasta_name}.aln.faa 2> align.err
+    elif [[ "${params.aligner}" == "famsa" ]]; then
+        echo "run famsa!"
+        famsa -t ${params.thread} $fasta_file ${fasta_name}.aln.faa   2> align.err
+    elif [[ "${params.aligner}" == "hybrid" ]]; then
+        if [[ \$(num_sequences) -gt 1000 ]]; then
+            echo "${fasta_name} run famsa!"
+            famsa -t ${params.thread} $fasta_file ${fasta_name}.aln.faa 2> align.err
+        else
+            echo "${fasta_name} run mafft!"
+            mafft --anysymbol --thread ${params.thread} $fasta_file > ${fasta_name}.aln.faa 2> align.err
+        fi
     else
         echo "Invalid alignment mode: ${params.aligner}"
         exit 1

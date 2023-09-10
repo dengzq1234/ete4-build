@@ -6,6 +6,14 @@ import sys
 #import nextflow
 import subprocess
 
+# Predefined workflows
+PREDEFINED_WORKFLOWS = {
+    "workflow1": {"aligner": "mafft", "trimmer": "trimal", "tree_builder": "fasttree"},
+    "workflow2": {"aligner": "famsa", "trimmer": "trimal", "tree_builder": "fasttree"},
+    "ana-workflow": {"aligner": "hybrid", "trimmer": "trimal", "tree_builder": "fasttree"},
+    # Add more predefined workflows as needed
+}
+
 def generate_nextflow_config(execution_mode, partition=None, time=None, memory=None, cpus=None):
     if execution_mode == "slurm":
         config_content = f"""
@@ -77,6 +85,7 @@ def main():
     parser.add_argument("--aligner", default="mafft", help="Alignment tool.")
     parser.add_argument("--trimmer", default="trimal", help="Trimming tool.")
     parser.add_argument("--tree_builder", default="fasttree", help="Tree building tool.")
+    parser.add_argument("--workflow", choices=list(PREDEFINED_WORKFLOWS.keys()), help="Select a predefined workflow.")
     parser.add_argument("--resume", action="store_true", help="Resume from the last failed step.")
 
     args = parser.parse_args()
@@ -85,6 +94,14 @@ def main():
     if args.mode == "slurm" and not args.partition:
         parser.error("--partition is required when mode is slurm.")
     
+    # If a predefined workflow is selected, override the tool choices
+    if args.workflow:
+        workflow_params = PREDEFINED_WORKFLOWS[args.workflow]
+        args.aligner = workflow_params["aligner"]
+        args.trimmer = workflow_params["trimmer"]
+        args.tree_builder = workflow_params["tree_builder"]
+
+
     run_nextflow(args.mode, args.input, args.output, args.aligner, args.trimmer, args.tree_builder, args.resume, args.script)
 
 if __name__ == "__main__":
