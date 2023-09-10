@@ -14,7 +14,7 @@ bin = "$baseDir/bin"
 
 // Check if input is a directory or a single file
 if (file(params.input).isDirectory()) {
-    FASTA_files = Channel.fromPath("${params.input}/*.fa")
+    FASTA_files = Channel.fromPath("${params.input}/*.faa")
 } else {
     FASTA_files = Channel.fromPath(params.input)
 }
@@ -190,11 +190,11 @@ process build {
 
 workflow {
     FASTA_files.set{ fasta_ch }
-    parseFasta(fasta_ch)
+    //parseFasta(fasta_ch)
     align(fasta_ch)
     trim(align.out.aln_seqs)
     build(trim.out.clean_aln_seqs)
-    parseFasta.out.info.view  { it -> println("[parseFasta] ${it}") }
+    //parseFasta.out.info.view  { it -> println("[parseFasta] ${it}") }
     align.out.align_stdout.view { it -> println("[align] ${it}") }
     trim.out.trim_stdout.view { it -> println("[trim] ${it}") }
     build.out.build_stdout.view { it -> println("[build] ${it}") }

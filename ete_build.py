@@ -51,6 +51,7 @@ def run_nextflow(mode, input_file, output_dir, aligner, trimmer, tree_builder, r
     cmd = [
         "nextflow", "run", script,
         "-ansi-log", "false",
+	"-profile", mode,  # Specify the profile based on the mode
         "--input", input_file,
         "--output", output_dir,
         "--aligner", aligner,
