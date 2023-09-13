@@ -2,12 +2,12 @@
 
 params.input = "$baseDir/data/"  // Can be a directory or a single file
 params.output = "$baseDir/result"
-params.thread = 4
+params.thread = 1
 params.aligner = "mafft"
 params.trimmer = "trimal"
 params.tree_builder = "fasttree"
-//params.memory = '4GB'
-memory_setting = params.memory ? params.memory : ''
+params.memory = '4GB'
+//memory_setting = params.memory ? params.memory : ''
 params.time = '1h'
 
 bin = "$baseDir/bin"
@@ -59,10 +59,10 @@ process parseFasta {
 
 process align {
     cpus params.thread
-    memory memory_setting
+    memory params.memory 
     time params.time
     errorStrategy 'retry'
-    maxRetries 3
+    maxRetries 2
     publishDir path: { "${params.output}/${fasta_name}-${params.aligner}-${params.trimmer}-${params.tree_builder}" }, mode: 'copy'
 
     input:
@@ -114,10 +114,10 @@ process align {
 
 process trim {
     cpus params.thread
-    memory memory_setting
+    memory params.memory
     time params.time
     errorStrategy 'retry'
-    maxRetries 3
+    maxRetries 2
     publishDir path: { "${params.output}/${fasta_name}-${params.aligner}-${params.trimmer}-${params.tree_builder}" }, mode: 'copy'
 
     input:
@@ -137,6 +137,9 @@ process trim {
     if [[ "${params.trimmer}" == "trimal" ]]; then
         echo "trim!"
         trimal -in $aln_file -out ${fasta_name}.clean.alg.faa -fasta -gt 0.1 1> trim.out 2> trim.err
+    elif [[ "${params.trimmer}" == "trim_alg_v2" ]]; then
+        echo "Using custom trim_alg_v2.py script!"
+        python ${bin}/trim_alg_v2.py -i $aln_file -o ${fasta_name}.clean.alg.faa --min_res_percent 0.1 --min_res_abs 3 1> trim.out 2> trim.err
     else
         cp $aln_file ${fasta_name}.clean.alg.faa
     fi
@@ -147,10 +150,10 @@ process trim {
 
 process build {
     cpus params.thread
-    memory memory_setting
+    memory params.memory
     time params.time
     errorStrategy 'retry'
-    maxRetries 3
+    maxRetries 2
     publishDir path: { "${params.output}/${fasta_name}-${params.aligner}-${params.trimmer}-${params.tree_builder}" }, mode: 'copy'
     
     input:
@@ -201,5 +204,5 @@ workflow {
 }
 
 workflow.onComplete {
-    file(".nextflow.log").moveTo("${params.output}/.nextflow.log")
+    file("nextflow.config").moveTo("${params.output}/nextflow.config")
 }
