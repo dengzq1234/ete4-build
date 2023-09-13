@@ -14,7 +14,7 @@ bin = "$baseDir/bin"
 
 // Check if input is a directory or a single file
 if (file(params.input).isDirectory()) {
-    FASTA_files = Channel.fromPath("${params.input}/*.fa")
+    FASTA_files = Channel.fromPath("${params.input}/*.{fa,faa,fasta}")
 } else {
     FASTA_files = Channel.fromPath(params.input)
 }
