@@ -46,12 +46,11 @@ profiles {
         f.write(config_content)
 
 def run_nextflow(mode, input_file, output_dir, aligner, trimmer, tree_builder, resume=False, script="ete_build_dsl2.nf"):
-    generate_nextflow_config(mode)
     #script = "ete_build_dsl2.nf"
     cmd = [
         "nextflow", "run", script,
         "-ansi-log", "false",
-	"-profile", mode,  # Specify the profile based on the mode
+	    "-profile", mode,  # Specify the profile based on the mode
         "--input", input_file,
         "--output", output_dir,
         "--aligner", aligner,
@@ -61,7 +60,7 @@ def run_nextflow(mode, input_file, output_dir, aligner, trimmer, tree_builder, r
     
     if resume:
         cmd.append("-resume")
-
+    
     process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     while True:
         output = process.stdout.readline()
@@ -102,6 +101,8 @@ def main():
         args.trimmer = workflow_params["trimmer"]
         args.tree_builder = workflow_params["tree_builder"]
 
+    # Generate the Nextflow config AFTER setting the workflow-specific parameters
+    generate_nextflow_config(args.mode, args.partition, args.time, args.memory, args.cpus)
 
     run_nextflow(args.mode, args.input, args.output, args.aligner, args.trimmer, args.tree_builder, args.resume, args.script)
 
