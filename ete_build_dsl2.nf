@@ -2,11 +2,12 @@
 
 params.input = "$baseDir/data/"
 params.output = "$baseDir/result"
-params.thread = 4
+params.thread = 1
 params.aligner = "mafft"
 params.trimmer = "trimal"
 params.tree_builder = "fasttree"
 params.memory = '4GB'
+//memory_setting = params.memory ? params.memory : ''
 params.time = '1h'
 params.customConfig = null
 
@@ -222,10 +223,10 @@ process parseFasta {
 
 process align {
     cpus params.thread
-    memory params.memory
+    memory params.memory 
     time params.time
     errorStrategy 'retry'
-    maxRetries 3
+    maxRetries 2
     publishDir path: { "${params.output}/${fasta_name}-${params.aligner}-${params.trimmer}-${params.tree_builder}" }, mode: 'copy'
 
     input:
@@ -292,7 +293,7 @@ process trim {
     memory params.memory
     time params.time
     errorStrategy 'retry'
-    maxRetries 3
+    maxRetries 2
     publishDir path: { "${params.output}/${fasta_name}-${params.aligner}-${params.trimmer}-${params.tree_builder}" }, mode: 'copy'
 
     input:
@@ -325,11 +326,11 @@ process trim {
 
     """
     start_time=\$(date +%s)
-    echo "run ${trimCmd} with options: $trimOptions"
-    if [ "${params.trimmer}" == "trimal" ]; then
-        ${trimCmd} ${trimOptions} -in $aln_file -out ${fasta_name}.clean.alg.faa 1> trim.out 2> trim.err
-    elif [ "${params.trimmer}" == "clipkit" ]; then
-        ${trimCmd} ${trimOptions} $aln_file -o ${fasta_name}.clean.alg.faa 1> trim.out 2> trim.err
+    if [[ "${params.trimmer}" == "trimal" ]]; then
+        echo "trim!"
+        trimal -in $aln_file -out ${fasta_name}.clean.alg.faa -fasta -gt 0.1 1> trim.out 2> trim.err
+    else
+        cp $aln_file ${fasta_name}.clean.alg.faa
     fi
     end_time=\$(date +%s)
     echo "Trimming $fasta_name took \$((end_time - start_time)) seconds."
@@ -341,7 +342,7 @@ process build {
     memory params.memory
     time params.time
     errorStrategy 'retry'
-    maxRetries 3
+    maxRetries 2
     publishDir path: { "${params.output}/${fasta_name}-${params.aligner}-${params.trimmer}-${params.tree_builder}" }, mode: 'copy'
     
     input:

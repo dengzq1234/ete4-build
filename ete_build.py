@@ -10,27 +10,75 @@ import subprocess
 PREDEFINED_WORKFLOWS = {
     "workflow1": {"aligner": "mafft", "trimmer": "trimal", "tree_builder": "fasttree"},
     "workflow2": {"aligner": "famsa", "trimmer": "trimal", "tree_builder": "fasttree"},
+    "workflow3": {"aligner": "famsa", "trimmer": "trim_alg_v2", "tree_builder": "fasttree"},
     "ana-workflow": {"aligner": "hybrid", "trimmer": "trimal", "tree_builder": "fasttree"},
     # Add more predefined workflows as needed
 }
 
-def generate_nextflow_config(execution_mode, partition=None, time=None, memory=None, cpus=None):
-    if execution_mode == "slurm":
-        config_content = f"""
+# def generate_nextflow_config(execution_mode, partition=None, time=None, memory=None, cpus=None):
+#     if execution_mode == "slurm":
+#         config_content = f"""
+#             profiles {{
+#                 slurm {{
+#                     process {{
+#                         executor = 'slurm'
+#                         queue = '{partition}'
+#                         time = '{time}'
+#                         memory = '{memory}'
+#                         cpus = {cpus}
+#                     }}
+#                 }}
+#             }}
+#             """
+#     elif execution_mode == "local":
+#         config_content = """
+# profiles {
+#     local {
+#         process {
+#             executor = 'local'
+#         }
+#     }
+# }
+# """
+#     else:
+#         raise ValueError(f"Unsupported execution mode: {execution_mode}")
+
+#     with open("nextflow.config", "w") as f:
+#         f.write(config_content)
+
+def generate_nextflow_config(args):
+    """
+    Generate the nextflow.config file based on the provided arguments.
+    """
+    # Base configuration content
+    config_content = f"""
+params.input = '{args.input}'
+params.output = '{args.output}'
+params.thread = {args.cpus}
+params.aligner = '{args.aligner}'
+params.trimmer = '{args.trimmer}'
+params.tree_builder = '{args.tree_builder}'
+params.memory = '{args.memory}'
+params.time = '{args.time}'
+"""
+
+    # Add profile-specific configurations
+    if args.mode == "slurm":
+        config_content += f"""
 profiles {{
     slurm {{
         process {{
             executor = 'slurm'
-            queue = '{partition}'
-            time = '{time}'
-            memory = '{memory}'
-            cpus = {cpus}
+            queue = '{args.partition}'
+            time = '{args.time}'
+            memory = '{args.memory}'
+            cpus = {args.cpus}
         }}
     }}
 }}
 """
-    elif execution_mode == "local":
-        config_content = """
+    elif args.mode == "local":
+        config_content += """
 profiles {
     local {
         process {
@@ -40,22 +88,33 @@ profiles {
 }
 """
     else:
-        raise ValueError(f"Unsupported execution mode: {execution_mode}")
+        raise ValueError(f"Unsupported execution mode: {args.mode}")
 
+    # Write to the nextflow.config file
     with open("nextflow.config", "w") as f:
         f.write(config_content)
 
-def run_nextflow(mode, input_file, output_dir, aligner, trimmer, tree_builder, resume=False, script="ete_build_dsl2.nf"):
+def run_nextflow(mode, input_file, output_dir, aligner, trimmer, tree_builder, memory, threads, resume=False, script="ete_build_dsl2.nf"):
     #script = "ete_build_dsl2.nf"
+    # cmd = [
+    #     "nextflow", "run", script,
+    #     "-ansi-log", "false",
+	#     "-profile", mode,  # Specify the profile based on the mode
+    #     "--input", input_file,
+    #     "--output", output_dir,
+    #     "--aligner", aligner,
+    #     "--trimmer", trimmer,
+    #     "--tree_builder", tree_builder,
+    #     "--memory", memory,
+    #     "--thread", str(threads),
+    # ]
+    
     cmd = [
-        "nextflow", "run", script,
-        "-ansi-log", "false",
-	    "-profile", mode,  # Specify the profile based on the mode
-        "--input", input_file,
-        "--output", output_dir,
-        "--aligner", aligner,
-        "--trimmer", trimmer,
-        "--tree_builder", tree_builder
+        "nextflow", 
+        "-C", "nextflow.config",  # Specify the generated config file
+        "run", script,
+       
+        
     ]
     
     if resume:
@@ -69,6 +128,11 @@ def run_nextflow(mode, input_file, output_dir, aligner, trimmer, tree_builder, r
         if output:
             print(output.strip())
     return_code = process.poll()
+
+    # Check for errors
+    if return_code != 0:
+        print(f"Error: Nextflow script {script} exited with code {return_code}", file=sys.stderr)
+
     return return_code
     
 
@@ -102,9 +166,9 @@ def main():
         args.tree_builder = workflow_params["tree_builder"]
 
     # Generate the Nextflow config AFTER setting the workflow-specific parameters
-    generate_nextflow_config(args.mode, args.partition, args.time, args.memory, args.cpus)
+    generate_nextflow_config(args)
 
-    run_nextflow(args.mode, args.input, args.output, args.aligner, args.trimmer, args.tree_builder, args.resume, args.script)
+    run_nextflow(args.mode, args.input, args.output, args.aligner, args.trimmer, args.tree_builder, args.memory, args.cpus, args.resume, args.script)
 
 if __name__ == "__main__":
     main()
