@@ -3,9 +3,9 @@
 params.input = "$baseDir/data/"
 params.output = "$baseDir/result"
 params.thread = 1
-params.aligner = "mafft"
-params.trimmer = "trimal"
-params.tree_builder = "fasttree"
+params.aligner = "none"//"mafft"
+params.trimmer = "none"//"trimal"
+params.tree_builder = "none"//"fasttree"
 params.memory = '4GB'
 //memory_setting = params.memory ? params.memory : ''
 params.time = '1h'
@@ -13,10 +13,88 @@ params.customConfig = null
 
 bin = "$baseDir/bin"
 
-// Load JSON config
-def configPath = params.customConfig ?: "${baseDir}/config.json"
-def config = file(configPath).text
-def jsonConfig = new groovy.json.JsonSlurper().parseText(config)
+// Default configuration
+def defaultConfig = [
+    aligner: [
+        mafft: [
+            name: "mafft",
+            mode: "auto",
+            methods: [
+                auto: [flag: "--auto"]
+            ]
+        ],
+        muscle: [
+            name: "muscle",
+        ],
+        tcoffee: [
+            name: "t_coffee"
+        ],
+        clustalo: [
+            name: "clustalo",
+            dealign: false,
+            //mode: "default",
+            //iterations: 10
+        ],
+        famsa: [
+            name: "famsa",
+            //gt: "sl",
+            //iterations: 100
+        ]
+    ],
+    trimmer: [
+        trimal: [
+            name: "trimal",
+            gt: 0.1
+        ],
+        clipkit: [
+            name: "clipkit",
+            mode: "smart-gap",
+            gap_threshold: 0.9,
+            codon: false
+        ]
+    ],
+    tree_builder: [
+        fasttree: [
+            name: "fasttree"
+        ],
+        phyml: [
+            name: "phyml",
+            datatype: "aa",
+            aa_models: ["LG", "WAG", "JTT", "MtREV", "Dayhoff", "DCMut", "RtREV", "CpREV", "VT", "AB", "Blosum62", "MtMam", "MtArt", "HIVw", "HIVb"],
+            nt_models: ["HKY85", "JC69", "K80", "F81", "F84", "TN93", "GTR"],
+            model: "JTT",
+            no_memory_check: true,
+            branch_support: "Chi2",
+            // bootstrap: "fbp",
+            // bootstrap_rep: 100,
+            equilibrium_freq: "empirical",
+            prop_invar: "e",
+            gamma: "e"
+        ],
+        raxml: [
+            name: "raxmlHPC",
+            algorithm: "d",
+            r_seed: 31416,
+            model: "PROTGAMMAJTT"
+        ],
+        iqtree: [
+            name: "iqtree",
+            st: "AA",
+            alrt: 1000,
+            seed: 31416,
+            mode: "TESTONLY",
+            bootstrap_rep: 100,
+            bootstrap: "fbp"
+        ]
+    ]
+]
+
+// Load custom config if provided
+def jsonConfig = defaultConfig
+if (params.customConfig) {
+    def customConfig = new groovy.json.JsonSlurper().parseText(file(params.customConfig).text)
+    jsonConfig = defaultConfig + customConfig
+}
 
 if (file(params.input).isDirectory()) {
     FASTA_files = Channel.fromPath("${params.input}/*.{fa,faa,fasta}")
@@ -30,8 +108,18 @@ output_dir_structure = { fasta_name -> "${params.output}/${fasta_name}-${params.
 def getMafftOptions(alignConfig) {
     def methodConfig = alignConfig.methods[alignConfig.mode]
     def flag = methodConfig?.flag ?: "--auto"
-    def options = "${flag} --ep ${alignConfig.ep} --op ${alignConfig.op} --maxiterate ${alignConfig.maxiterate}"
-    
+    def options = "${flag}"
+
+    if (alignConfig.ep != null) {
+        options += " --ep ${alignConfig.ep}"
+    }
+    if (alignConfig.op != null) {
+        options += " --op ${alignConfig.op}"
+    }
+    if (alignConfig.maxiterate != null) {
+        options += " --maxiterate ${alignConfig.maxiterate}"
+    }
+
     // Add matrix options
     if (alignConfig.matrix == "BLOSUM") {
         options += " --bl ${alignConfig.blosum_coefficient}"
@@ -61,15 +149,15 @@ def getClustaloOptions(alignConfig) {
     def options = ""
     options += alignConfig.dealign ? " --dealign" : ""
     options += alignConfig.mode == "full" ? " --full" : ""
-    options += " --iterations ${alignConfig.iterations}"
+    options += alignConfig.iterations ? " --iterations ${alignConfig.iterations}": ""
     return options
 }
 
 // Function to get FAMSA options
 def getFamsaOptions(alignConfig) {
     def options = ""
-    options += " -gt ${alignConfig.gt}"
-    options += " -r ${alignConfig.iterations}"
+    options += alignConfig.gt ? " -gt ${alignConfig.gt}" : ""
+    options += alignConfig.iterations ? " -r ${alignConfig.iterations}" : ""
     return options
 }
 
@@ -92,9 +180,48 @@ def getClipkitOptions(trimConfig) {
 
 // Function to get FastTree options
 def getFastTreeOptions(buildConfig) {
-    return ""
-}
+    def options = ""
 
+    // Handle datatype
+    if (buildConfig.datatype == "nt") {
+        options += " -nt"
+    }
+    // Handle model for aa
+    if (buildConfig.datatype == "aa") {
+        switch (buildConfig.model) {
+            case "LG":
+                options += " -lg"
+                break
+            case "WAG":
+                options += " -wag"
+                break
+            // No need to add anything for JTT
+        }
+    }
+    // Handle model for nt
+    if (buildConfig.datatype == "nt") {
+        switch (buildConfig.model) {
+            case "GTR":
+                options += " -gtr"
+                break
+            // No need to add anything for JC
+        }
+    }
+    // Handle gamma
+    if (buildConfig.gamma) {
+        options += " -gamma"
+    }
+    // Handle pseudo
+    if (buildConfig.pseudo != null) {
+        options += " -pseudo ${buildConfig.pseudo}"
+    }
+    // Handle branch support
+    if (buildConfig.branch_support) {
+        options += " -boot ${buildConfig.bootstrap_rep ?: 1000}"
+    }
+
+    return options
+}
 // Function to get PhyML options
 // Function to get PhyML options
 def getPhymlOptions(buildConfig) {
@@ -275,7 +402,7 @@ process align {
     if [ "${params.aligner}" == "mafft" ]; then
         ${alignCmd} ${alignOptions} --thread ${params.thread} $fasta_file > ${fasta_name}.aln.faa 2> align.err
     elif [ "${params.aligner}" == "muscle" ]; then
-        ${alignCmd} ${alignOptions} -in $fasta_file -out ${fasta_name}.aln.faa 2> align.err
+        ${alignCmd} ${alignOptions} -align $fasta_file -output ${fasta_name}.aln.faa 2> align.err
     elif [ "${params.aligner}" == "tcoffee" ]; then
         ${alignCmd} ${alignOptions} -in $fasta_file -outfile=${fasta_name}.aln.faa 2> align.err
     elif [ "${params.aligner}" == "clustalo" ]; then
@@ -308,12 +435,14 @@ process trim {
 
     script:
     fasta_name = aln_file.baseName.replace(".aln", "")
-    def trimConfig = jsonConfig.trimmer[params.trimmer]
-    
-    def trimCmd = "trimal"
+    def trimConfig = params.trimmer ? jsonConfig.trimmer[params.trimmer] : null
+    def trimCmd = ""
     def trimOptions = ""
     switch(params.trimmer) {
+        case "none":
+            break
         case "trimal":
+            trimCmd = "trimal"
             trimOptions = getTrimalOptions(trimConfig)
             break
         case "clipkit":
@@ -326,11 +455,15 @@ process trim {
 
     """
     start_time=\$(date +%s)
-    if [[ "${params.trimmer}" == "trimal" ]]; then
-        echo "trim!"
-        trimal -in $aln_file -out ${fasta_name}.clean.alg.faa -fasta -gt 0.1 1> trim.out 2> trim.err
-    else
-        cp $aln_file ${fasta_name}.clean.alg.faa
+    if [[ "${params.trimmer}" == "none" ]]; then
+        echo "No trimmer specified, copying alignment file."
+        cp $aln_file ${fasta_name}.clean.alg.faa 1> trim.out 2> trim.err
+    elif [[ "${params.trimmer}" == "trimal" ]]; then
+        echo "Running trimal!"
+        ${trimCmd} ${trimOptions} -in $aln_file -out ${fasta_name}.clean.alg.faa -fasta 1> trim.out 2> trim.err
+    elif [[ "${params.trimmer}" == "clipkit" ]]; then
+        echo "Running clipkit!"
+        ${trimCmd} ${trimOptions} $aln_file -o ${fasta_name}.clean.alg.faa 1> trim.out 2> trim.err
     fi
     end_time=\$(date +%s)
     echo "Trimming $fasta_name took \$((end_time - start_time)) seconds."
