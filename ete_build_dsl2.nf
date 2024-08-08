@@ -1,19 +1,20 @@
 #!/usr/bin/env nextflow
+import groovy.json.JsonOutput
 
 params.input = "$baseDir/data/"
 params.output = "$baseDir/result"
 params.thread = 1
-params.aligner = "none"//"mafft"
-params.trimmer = "none"//"trimal"
-params.tree_builder = "none"//"fasttree"
+params.aligner = "none" // "mafft"
+params.trimmer = "none" // "trimal"
+params.tree_builder = "none" // "fasttree"
 params.memory = '4GB'
-//memory_setting = params.memory ? params.memory : ''
 params.time = '1h'
 params.customConfig = null
 
 bin = "$baseDir/bin"
 
 // Default configuration
+
 def defaultConfig = [
     aligner: [
         mafft: [
@@ -32,13 +33,9 @@ def defaultConfig = [
         clustalo: [
             name: "clustalo",
             dealign: false,
-            //mode: "default",
-            //iterations: 10
         ],
         famsa: [
             name: "famsa",
-            //gt: "sl",
-            //iterations: 100
         ]
     ],
     trimmer: [
@@ -65,8 +62,6 @@ def defaultConfig = [
             model: "JTT",
             no_memory_check: true,
             branch_support: "Chi2",
-            // bootstrap: "fbp",
-            // bootstrap_rep: 100,
             equilibrium_freq: "empirical",
             prop_invar: "e",
             gamma: "e"
@@ -83,24 +78,42 @@ def defaultConfig = [
             alrt: 1000,
             seed: 31416,
             mode: "TESTONLY",
-            bootstrap_rep: 100,
+            bootstrap_rep: 1000,
             bootstrap: "fbp"
         ]
     ]
 ]
 
-// Load custom config if provided
-def jsonConfig = defaultConfig
-if (params.customConfig) {
-    def customConfig = new groovy.json.JsonSlurper().parseText(file(params.customConfig).text)
-    jsonConfig = defaultConfig + customConfig
+// Function to perform a deep copy of a map
+def deepCopy(map) {
+    new groovy.json.JsonSlurper().parseText(new groovy.json.JsonBuilder(map).toString())
 }
 
-if (file(params.input).isDirectory()) {
-    FASTA_files = Channel.fromPath("${params.input}/*.{fa,faa,fasta}")
-} else {
-    FASTA_files = Channel.fromPath(params.input)
+// Function to load and merge custom config
+def loadAndMergeConfig(defaultConfig, customConfigFile) {
+    def config = deepCopy(defaultConfig)
+    if (customConfigFile) {
+        //println "Loading custom configuration from: ${customConfigFile}"
+        def customConfig = new groovy.json.JsonSlurper().parseText(file(customConfigFile).text)
+        //println "Custom Config: ${customConfig}"
+        config = config + customConfig
+    }
+    println "workflow Config: ${config}"
+    return config
 }
+
+// Ensure the configuration is loaded before any processes run
+def jsonConfig = loadAndMergeConfig(defaultConfig, params.customConfig)
+
+// Load custom config if provided old
+// def jsonConfig = defaultConfig
+// if (params.customConfig) {
+//     def customConfig = new groovy.json.JsonSlurper().parseText(file(params.customConfig).text)
+//     jsonConfig = defaultConfig + customConfig
+// }
+
+// Handle input files or directory
+FASTA_files = file(params.input).isDirectory() ? Channel.fromPath("${params.input}/*.{fa,faa,fasta}") : Channel.fromPath(params.input)
 
 output_dir_structure = { fasta_name -> "${params.output}/${fasta_name}-${params.aligner}-${params.trimmer}-${params.tree_builder}" }
 
@@ -222,14 +235,14 @@ def getFastTreeOptions(buildConfig) {
 
     return options
 }
-// Function to get PhyML options
+
 // Function to get PhyML options
 def getPhymlOptions(buildConfig) {
     def options = ""
     options += buildConfig.model ? "-m ${buildConfig.model} " : ""
     options += buildConfig.datatype ? "-d ${buildConfig.datatype} " : ""
     options += buildConfig.no_memory_check ? "--no_memory_check " : ""
-    
+
     if (buildConfig.branch_support) {
         switch(buildConfig.branch_support) {
             case "bootstrap":
@@ -286,7 +299,7 @@ def getPhymlOptions(buildConfig) {
             options += "--gamma ${buildConfig.gamma} "
         }
     }
-    
+
     return options
 }
 
@@ -308,12 +321,12 @@ def getIqtreeOptions(buildConfig) {
     options += buildConfig.seed ? "-seed ${buildConfig.seed} " : ""
     options += buildConfig.mode ? "-m ${buildConfig.mode} " : ""
     options += buildConfig.bootstrap_rep ? "-B ${buildConfig.bootstrap_rep} " : ""
+    println "IQ-TREE Options: ${buildConfig.bootstrap_rep}"
     if (buildConfig.bootstrap == "tbe") {
         options += "--tbe "
     }
     return options
 }
-
 
 process parseFasta {
     cpus 1
@@ -327,7 +340,7 @@ process parseFasta {
     path fasta_file
 
     output:
-        stdout emit: info
+    stdout emit: info
 
     script:
     fasta_name = fasta_file.baseName
@@ -367,52 +380,66 @@ process align {
 
     script:
     fasta_name = fasta_file.baseName
-    def alignConfig = jsonConfig.aligner[params.aligner]
-    
-    def alignCmd = "mafft"
-    def alignOptions = ""
-    switch(params.aligner) {
-        case "mafft":
-            alignOptions = getMafftOptions(alignConfig)
-            break
-        case "muscle":
-            alignCmd = "muscle"
-            alignOptions = getMuscleOptions(alignConfig)
-            break
-        case "tcoffee":
-            alignCmd = "t_coffee"
-            alignOptions = getTcoffeeOptions(alignConfig)
-            break
-        case "clustalo":
-            alignCmd = "clustalo"
-            alignOptions = getClustaloOptions(alignConfig)
-            break
-        case "famsa":
-            alignCmd = "famsa"
-            alignOptions = getFamsaOptions(alignConfig)
-            break
-        default:
-            throw new Exception("Invalid aligner: ${params.aligner}")
-    }
+    if (params.aligner == "none") {
+        // If no aligner is specified, just copy the input file to the output
+        """
+        cp $fasta_file ${fasta_name}.aln.faa
+        """
+    } else {
+        def alignConfig = jsonConfig.aligner[params.aligner]
+        
+        
+        if (!alignConfig) {
+            throw new Exception("Aligner configuration for '${params.aligner}' is not found.")
+        }
 
-    """
-    num_sequences=\$(grep -c '^>' $fasta_file)
-    start_time=\$(date +%s)
-    echo "run ${alignCmd} with options: $alignOptions"
-    if [ "${params.aligner}" == "mafft" ]; then
-        ${alignCmd} ${alignOptions} --thread ${params.thread} $fasta_file > ${fasta_name}.aln.faa 2> align.err
-    elif [ "${params.aligner}" == "muscle" ]; then
-        ${alignCmd} ${alignOptions} -align $fasta_file -output ${fasta_name}.aln.faa 2> align.err
-    elif [ "${params.aligner}" == "tcoffee" ]; then
-        ${alignCmd} ${alignOptions} -in $fasta_file -outfile=${fasta_name}.aln.faa 2> align.err
-    elif [ "${params.aligner}" == "clustalo" ]; then
-        ${alignCmd} ${alignOptions} --thread ${params.thread} -i $fasta_file -o ${fasta_name}.aln.faa 2> align.err
-    elif [ "${params.aligner}" == "famsa" ]; then
-        ${alignCmd} ${alignOptions} -t ${params.thread} $fasta_file ${fasta_name}.aln.faa 2> align.err
-    fi
-    end_time=\$(date +%s)
-    echo "Alignment $fasta_file took \$((end_time - start_time)) seconds."
-    """
+        def alignCmd = "mafft"
+        def alignOptions = ""
+        switch(params.aligner) {
+            case "mafft":
+                alignOptions = getMafftOptions(alignConfig)
+                break
+            case "muscle":
+                alignCmd = "muscle"
+                alignOptions = getMuscleOptions(alignConfig)
+                break
+            case "tcoffee":
+                alignCmd = "t_coffee"
+                alignOptions = getTcoffeeOptions(alignConfig)
+                break
+            case "clustalo":
+                alignCmd = "clustalo"
+                alignOptions = getClustaloOptions(alignConfig)
+                break
+            case "famsa":
+                alignCmd = "famsa"
+                alignOptions = getFamsaOptions(alignConfig)
+                break
+            default:
+                throw new Exception("Invalid aligner: ${params.aligner}")
+        }
+
+        // Additional debug print for alignOptions
+        // println "Align Options: ${alignOptions}"
+        """
+        num_sequences=\$(grep -c '^>' $fasta_file)
+        start_time=\$(date +%s)
+        echo "run ${alignCmd} with options: $alignOptions"
+        if [ "${params.aligner}" == "mafft" ]; then
+            ${alignCmd} ${alignOptions} --thread ${params.thread} $fasta_file > ${fasta_name}.aln.faa 2> align.err
+        elif [ "${params.aligner}" == "muscle" ]; then
+            ${alignCmd} ${alignOptions} -align $fasta_file -output ${fasta_name}.aln.faa 2> align.err
+        elif [ "${params.aligner}" == "tcoffee" ]; then
+            ${alignCmd} ${alignOptions} -in $fasta_file -outfile=${fasta_name}.aln.faa 2> align.err
+        elif [ "${params.aligner}" == "clustalo" ]; then
+            ${alignCmd} ${alignOptions} --threads ${params.thread} -i $fasta_file -o ${fasta_name}.aln.faa 2> align.err
+        elif [ "${params.aligner}" == "famsa" ]; then
+            ${alignCmd} ${alignOptions} -t ${params.thread} $fasta_file ${fasta_name}.aln.faa 2> align.err
+        fi
+        end_time=\$(date +%s)
+        echo "Alignment $fasta_file took \$((end_time - start_time)) seconds."
+        """
+    }
 }
 
 process trim {
@@ -428,46 +455,50 @@ process trim {
 
     output:
     path "${fasta_name}.clean.alg.faa", emit: clean_aln_seqs
-    path "*.*", emit: trim_files
-    path "trim.out", emit: trim_out
-    path "trim.err", emit: trim_err
+    path "*.*", emit: trim_files, optional: true
     stdout emit: trim_stdout
+    path "trim.out",  optional: true
+    path "trim.err", optional: true
+    
 
     script:
     fasta_name = aln_file.baseName.replace(".aln", "")
-    def trimConfig = params.trimmer ? jsonConfig.trimmer[params.trimmer] : null
-    def trimCmd = ""
-    def trimOptions = ""
-    switch(params.trimmer) {
-        case "none":
-            break
-        case "trimal":
-            trimCmd = "trimal"
-            trimOptions = getTrimalOptions(trimConfig)
-            break
-        case "clipkit":
-            trimCmd = "clipkit"
-            trimOptions = getClipkitOptions(trimConfig)
-            break
-        default:
-            throw new Exception("Invalid trimmer: ${params.trimmer}")
-    }
+    if (params.trimmer == "none") {
+        // If no trimmer is specified, just copy the input file to the output
+        println "No trimmer specified, copying the input file to the output."
+        """
+        cp $aln_file ${fasta_name}.clean.alg.faa
+        """
+    } else {
+        def trimConfig = jsonConfig.trimmer[params.trimmer]
+        def trimCmd = ""
+        def trimOptions = ""
+        switch(params.trimmer) {
+            case "trimal":
+                trimCmd = "trimal"
+                trimOptions = getTrimalOptions(trimConfig)
+                break
+            case "clipkit":
+                trimCmd = "clipkit"
+                trimOptions = getClipkitOptions(trimConfig)
+                break
+            default:
+                throw new Exception("Invalid trimmer: ${params.trimmer}")
+        }
 
-    """
-    start_time=\$(date +%s)
-    if [[ "${params.trimmer}" == "none" ]]; then
-        echo "No trimmer specified, copying alignment file."
-        cp $aln_file ${fasta_name}.clean.alg.faa 1> trim.out 2> trim.err
-    elif [[ "${params.trimmer}" == "trimal" ]]; then
-        echo "Running trimal!"
-        ${trimCmd} ${trimOptions} -in $aln_file -out ${fasta_name}.clean.alg.faa -fasta 1> trim.out 2> trim.err
-    elif [[ "${params.trimmer}" == "clipkit" ]]; then
-        echo "Running clipkit!"
-        ${trimCmd} ${trimOptions} $aln_file -o ${fasta_name}.clean.alg.faa 1> trim.out 2> trim.err
-    fi
-    end_time=\$(date +%s)
-    echo "Trimming $fasta_name took \$((end_time - start_time)) seconds."
-    """
+        """
+        start_time=\$(date +%s)
+        if [ "${params.trimmer}" == "trimal" ]; then
+            echo "Running trimal!"
+            ${trimCmd} ${trimOptions} -in $aln_file -out ${fasta_name}.clean.alg.faa -fasta 1> trim.out 2> trim.err
+        elif [ "${params.trimmer}" == "clipkit" ]; then
+            echo "Running clipkit!"
+            ${trimCmd} ${trimOptions} $aln_file -o ${fasta_name}.clean.alg.faa 1> trim.out 2> trim.err
+        fi
+        end_time=\$(date +%s)
+        echo "Trimming $fasta_name took \$((end_time - start_time)) seconds."
+        """
+    }
 }
 
 process build {
@@ -489,56 +520,125 @@ process build {
 
     script:
     fasta_name = clean_aln_file.baseName.replace(".clean.alg", "")
-    def buildConfig = jsonConfig.tree_builder[params.tree_builder]
-    def buildCmd = "FastTree"
-    def buildOptions = ""
-    switch(params.tree_builder) {
-        case "fasttree":
-            buildOptions = getFastTreeOptions(buildConfig)
-            break
-        case "phyml":
-            buildCmd = "phyml"
-            buildOptions = getPhymlOptions(buildConfig)
-            break
-        case "raxml":
-            buildCmd = "raxmlHPC"
-            buildOptions = getRaxmlOptions(buildConfig)
-            break
-        case "iqtree":
-            buildCmd = "iqtree2"
-            buildOptions = getIqtreeOptions(buildConfig)
-            break
-        default:
-            throw new Exception("Invalid tree builder: ${params.tree_builder}")
-    }
+    if (params.tree_builder == "none") {
+        // If no tree builder is specified, just copy the input file to the output
+        """
+        cp $clean_aln_file ${fasta_name}.output.tree
+        """
+    } else {
+        def buildConfig = jsonConfig.tree_builder[params.tree_builder]
+        def buildCmd = "FastTree"
+        def buildOptions = ""
+        switch(params.tree_builder) {
+            case "fasttree":
+                buildOptions = getFastTreeOptions(buildConfig)
+                break
+            case "phyml":
+                buildCmd = "phyml"
+                buildOptions = getPhymlOptions(buildConfig)
+                break
+            case "raxml":
+                buildCmd = "raxmlHPC"
+                buildOptions = getRaxmlOptions(buildConfig)
+                break
+            case "iqtree":
+                buildCmd = "iqtree2"
+                buildOptions = getIqtreeOptions(buildConfig)
+                break
+            default:
+                throw new Exception("Invalid tree builder: ${params.tree_builder}")
+        }
 
+        """
+        start_time=\$(date +%s)
+        echo "run ${buildCmd} with options: $buildOptions"
+        if [ "${params.tree_builder}" == "fasttree" ]; then
+            ${buildCmd} ${buildOptions} $clean_aln_file > ${fasta_name}.output.tree 2> build.err
+        elif [ "${params.tree_builder}" == "phyml" ]; then
+            python ${bin}/FastaToPhylip.py $clean_aln_file && \
+            ${buildCmd} ${buildOptions} -i ${fasta_name}.clean.alg.phylip 2> build.err && \
+            mv ${fasta_name}.clean.alg.phylip_phyml_tree.txt ${fasta_name}.output.tree
+        elif [ "${params.tree_builder}" == "raxml" ]; then
+            ${buildCmd} ${buildOptions} -s $clean_aln_file -n ${fasta_name}.output.tree -T ${params.thread} 2> build.err
+            cp RAxML_bestTree.${fasta_name}.output.tree ${fasta_name}.output.tree
+        elif [ "${params.tree_builder}" == "iqtree" ]; then
+            ${buildCmd} ${buildOptions} -s $clean_aln_file -T ${params.thread} 2> build.err
+            cp ${fasta_name}.clean.alg.faa.treefile ${fasta_name}.output.tree
+        fi
+        end_time=\$(date +%s)
+        echo "Tree building $fasta_name took \$((end_time - start_time)) seconds."
+        """
+    }
+}
+
+process listInputFiles {
+    input:
+    path fasta_file
+
+    output:
+    path fasta_file
+
+    script:
     """
-    start_time=\$(date +%s)
-    echo "run ${buildCmd} with options: $buildOptions"
-    if [ "${params.tree_builder}" == "fasttree" ]; then
-        ${buildCmd} ${buildOptions} $clean_aln_file > ${fasta_name}.output.tree 2> build.err
-    elif [ "${params.tree_builder}" == "phyml" ]; then
-        python ${bin}/FastaToPhylip.py $clean_aln_file && \
-        ${buildCmd} ${buildOptions} -i ${fasta_name}.faa.clean.alg.phylip 2> build.err && \
-        mv ${fasta_name}.faa.clean.alg.phylip_phyml_tree.txt ${fasta_name}.output.tree
-    elif [ "${params.tree_builder}" == "raxml" ]; then
-        ${buildCmd} ${buildOptions} -s $clean_aln_file -n ${fasta_name}.output.tree -T ${params.thread} 2> build.err
-        cp RAxML_bestTree.${fasta_name}.output.tree ${fasta_name}.output.tree
-    elif [ "${params.tree_builder}" == "iqtree" ]; then
-        ${buildCmd} ${buildOptions} -s $clean_aln_file -T ${params.thread} 2> build.err
-        cp ${fasta_name}.clean.alg.faa.treefile ${fasta_name}.output.tree
-    fi
-    end_time=\$(date +%s)
-    echo "Tree building $fasta_name took \$((end_time - start_time)) seconds."
+    echo "Processing file: $fasta_file"
     """
 }
 
 
+process outputUsedConfig {
+    input:
+    val alignConfig
+    val trimConfig
+    val buildConfig
+
+    output:
+    path "used_config.json"
+
+    publishDir params.output, mode: 'copy'
+
+    script:
+    def usedConfig = [:]
+    if (alignConfig) {
+        usedConfig.aligner = [(params.aligner): alignConfig]
+    }
+    if (trimConfig) {
+        usedConfig.trimmer = [(params.trimmer): trimConfig]
+    }
+    if (buildConfig) {
+        usedConfig.tree_builder = [(params.tree_builder): buildConfig]
+    }
+
+    def jsonOutput = JsonOutput.toJson(usedConfig)
+    """
+    echo '${jsonOutput}' > used_config.json
+    """
+}
+
 workflow {
-    FASTA_files.set{ fasta_ch }
-    align(fasta_ch)
+
+    // FASTA_files | listInputFiles | view { it -> println("[listInputFiles] ${it}") }
+
+    // Process all input files through the align, trim, and build processes
+    FASTA_files
+        .ifEmpty { error "No input files found in the provided input path: ${params.input}" }
+        .set { parsed_files }
+    
+    // Retrieve the configurations used
+    def alignConfig = params.aligner != "none" ? jsonConfig.aligner[params.aligner] : [:]
+    def trimConfig = params.trimmer != "none" ? jsonConfig.trimmer[params.trimmer] : [:]
+    def buildConfig = params.tree_builder != "none" ? jsonConfig.tree_builder[params.tree_builder] : [:]
+    println "Align Config: ${alignConfig}"
+    println "${params.trimmer}"
+    println "Trim Config: ${trimConfig}"
+    println "Build Config: ${buildConfig}"
+    // Output the used configurations to a JSON file
+
+    outputUsedConfig(alignConfig, trimConfig, buildConfig)
+
+    align(parsed_files)
     trim(align.out.aln_seqs)
     build(trim.out.clean_aln_seqs)
+    
     align.out.align_stdout.view { it -> println("[align] ${it}") }
     trim.out.trim_stdout.view { it -> println("[trim] ${it}") }
     build.out.build_stdout.view { it -> println("[build] ${it}") }
