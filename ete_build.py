@@ -74,8 +74,6 @@ profiles {{
             memory = '{args.memory}'
             cpus = {args.cpus}
         }}
-    }}
-}}
 """
     elif args.mode == "local":
         config_content += """
@@ -149,7 +147,7 @@ def main():
     parser.add_argument("--aligner", default="mafft", help="Alignment tool.")
     parser.add_argument("--trimmer", default="trimal", help="Trimming tool.")
     parser.add_argument("--tree_builder", default="fasttree", help="Tree building tool.")
-    parser.add_argument("--workflow", choices=list(PREDEFINED_WORKFLOWS.keys()), help="Select a predefined workflow.")
+    parser.add_argument("--workflow", help="Select a predefined workflow.") #choices=list(PREDEFINED_WORKFLOWS.keys()),
     parser.add_argument("--resume", action="store_true", help="Resume from the last failed step.")
 
     args = parser.parse_args()
