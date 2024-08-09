@@ -3,7 +3,6 @@
 import argparse
 import os
 import sys
-#import nextflow
 import subprocess
 
 # Predefined workflows
@@ -14,37 +13,6 @@ PREDEFINED_WORKFLOWS = {
     "ana-workflow": {"aligner": "hybrid", "trimmer": "trimal", "tree_builder": "fasttree"},
     # Add more predefined workflows as needed
 }
-
-# def generate_nextflow_config(execution_mode, partition=None, time=None, memory=None, cpus=None):
-#     if execution_mode == "slurm":
-#         config_content = f"""
-#             profiles {{
-#                 slurm {{
-#                     process {{
-#                         executor = 'slurm'
-#                         queue = '{partition}'
-#                         time = '{time}'
-#                         memory = '{memory}'
-#                         cpus = {cpus}
-#                     }}
-#                 }}
-#             }}
-#             """
-#     elif execution_mode == "local":
-#         config_content = """
-# profiles {
-#     local {
-#         process {
-#             executor = 'local'
-#         }
-#     }
-# }
-# """
-#     else:
-#         raise ValueError(f"Unsupported execution mode: {execution_mode}")
-
-#     with open("nextflow.config", "w") as f:
-#         f.write(config_content)
 
 def generate_nextflow_config(args):
     """
@@ -74,6 +42,8 @@ profiles {{
             memory = '{args.memory}'
             cpus = {args.cpus}
         }}
+    }}
+}}
 """
     elif args.mode == "local":
         config_content += """
@@ -93,26 +63,10 @@ profiles {
         f.write(config_content)
 
 def run_nextflow(mode, input_file, output_dir, aligner, trimmer, tree_builder, memory, threads, resume=False, script="ete_build_dsl2.nf"):
-    #script = "ete_build_dsl2.nf"
-    # cmd = [
-    #     "nextflow", "run", script,
-    #     "-ansi-log", "false",
-	#     "-profile", mode,  # Specify the profile based on the mode
-    #     "--input", input_file,
-    #     "--output", output_dir,
-    #     "--aligner", aligner,
-    #     "--trimmer", trimmer,
-    #     "--tree_builder", tree_builder,
-    #     "--memory", memory,
-    #     "--thread", str(threads),
-    # ]
-    
     cmd = [
         "nextflow", 
         "-C", "nextflow.config",  # Specify the generated config file
         "run", script,
-       
-        
     ]
     
     if resume:
