@@ -66,8 +66,8 @@ def defaultConfig = [
             nt_models: ["HKY85", "JC69", "K80", "F81", "F84", "TN93", "GTR"],
             model: "JTT",
             no_memory_check: true,
-            branch_support: "Chi2",
-            equilibrium_freq: "empirical",
+            branch_support: "Bayes", // Chi2
+            equilibrium_freq: "ml", //empirical
             prop_invar: "e",
             gamma: "e"
         ],
@@ -595,8 +595,11 @@ process build {
         if [ "${params.tree_builder}" == "fasttree" ]; then
             ${buildCmd} ${buildOptions} $clean_aln_file > ${fasta_name}.output.tree 2> build.err
         elif [ "${params.tree_builder}" == "phyml" ]; then
-            python ${bin}/FastaToPhylip.py $clean_aln_file && \
+            # Convert the input FASTA file to PHYLIP format using the updated script
+            python ${bin}/FastaToPhylip.py -i $clean_aln_file -o ${fasta_name}.clean.alg.phylip && \
+            # Run PhyML on the converted PHYLIP file
             ${buildCmd} ${buildOptions} -i ${fasta_name}.clean.alg.phylip 2> build.err && \
+            # Move the output tree file to the desired output location
             mv ${fasta_name}.clean.alg.phylip_phyml_tree.txt ${fasta_name}.output.tree
         elif [ "${params.tree_builder}" == "raxml" ]; then
             ${buildCmd} ${buildOptions} -s $clean_aln_file -n ${fasta_name}.output.tree -T ${params.thread} 2> build.err
