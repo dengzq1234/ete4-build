@@ -48,6 +48,11 @@ def defaultConfig = [
             mode: "smart-gap",
             gap_threshold: 0.9,
             codon: false
+        ],
+        trim_alg_v2: [
+            name: "trim_alg_v2.py",
+            min_res_abs: 3,
+            min_res_percent: 0.1
         ]
     ],
     tree_builder: [
@@ -191,6 +196,13 @@ def getClipkitOptions(trimConfig) {
     return options
 }
 
+def getTrimAlgV2Options(trimConfig) {
+    def options = ""
+    options += trimConfig.min_res_abs ? "--min_res_abs ${trimConfig.min_res_abs} " : ""
+    options += trimConfig.min_res_percent ? "--min_res_percent ${trimConfig.min_res_percent} " : ""
+    return options
+}
+
 // Function to get FastTree options
 def getFastTreeOptions(buildConfig) {
     def options = ""
@@ -321,7 +333,7 @@ def getIqtreeOptions(buildConfig) {
     options += buildConfig.seed ? "-seed ${buildConfig.seed} " : ""
     options += buildConfig.mode ? "-m ${buildConfig.mode} " : ""
     options += buildConfig.bootstrap_rep ? "-B ${buildConfig.bootstrap_rep} " : ""
-    println "IQ-TREE Options: ${buildConfig.bootstrap_rep}"
+    // println "IQ-TREE Options: ${buildConfig.bootstrap_rep}"
     if (buildConfig.bootstrap == "tbe") {
         options += "--tbe "
     }
@@ -503,6 +515,10 @@ process trim {
                 trimCmd = "clipkit"
                 trimOptions = getClipkitOptions(trimConfig)
                 break
+            case "trim_alg_v2":
+                trimCmd = "trim_alg_v2.py"
+                trimOptions = getTrimAlgV2Options(trimConfig)
+                break
             default:
                 throw new Exception("Invalid trimmer: ${params.trimmer}")
         }
@@ -515,6 +531,9 @@ process trim {
         elif [ "${params.trimmer}" == "clipkit" ]; then
             echo "Running clipkit!"
             ${trimCmd} ${trimOptions} $aln_file -o ${fasta_name}.clean.alg.faa 1> trim.out 2> trim.err
+        elif [ "${params.trimmer}" == "trim_alg_v2" ]; then
+            echo "Running trim_alg_v2!"
+            python ${bin}/${trimCmd} ${trimOptions} -i $aln_file -o ${fasta_name}.clean.alg.faa 1> trim.out 2> trim.err
         fi
         end_time=\$(date +%s)
         echo "Trimming $fasta_name took \$((end_time - start_time)) seconds."
