@@ -328,6 +328,27 @@ def getIqtreeOptions(buildConfig) {
     return options
 }
 
+// Function to filter only the used method in aligner
+def filterUsedAlignerConfig(alignConfig) {
+    def usedAlignerConfig = alignConfig.clone()
+    if (alignConfig.methods) {
+        usedAlignerConfig.methods = [(alignConfig.mode): alignConfig.methods[alignConfig.mode]]
+    }
+    return usedAlignerConfig
+}
+
+// Function to filter only the used options in trimmer
+def filterUsedTrimmerConfig(trimConfig) {
+    def usedTrimmerConfig = trimConfig.clone()
+    return usedTrimmerConfig
+}
+
+// Function to filter only the used options in tree builder
+def filterUsedTreeBuilderConfig(buildConfig) {
+    def usedTreeBuilderConfig = buildConfig.clone()
+    return usedTreeBuilderConfig
+}
+
 process parseFasta {
     cpus 1
     memory '1GB'
@@ -584,7 +605,6 @@ process listInputFiles {
     """
 }
 
-
 process outputUsedConfig {
     input:
     val alignConfig
@@ -597,22 +617,28 @@ process outputUsedConfig {
     publishDir params.output, mode: 'copy'
 
     script:
+    // Apply filtering to the configurations
+    def filteredAlignConfig = alignConfig ? filterUsedAlignerConfig(alignConfig) : null
+    def filteredTrimConfig = trimConfig ? filterUsedTrimmerConfig(trimConfig) : null
+    def filteredBuildConfig = buildConfig ? filterUsedTreeBuilderConfig(buildConfig) : null
+
     def usedConfig = [:]
-    if (alignConfig) {
-        usedConfig.aligner = [(params.aligner): alignConfig]
+    if (filteredAlignConfig) {
+        usedConfig.aligner = [(params.aligner): filteredAlignConfig]
     }
-    if (trimConfig) {
-        usedConfig.trimmer = [(params.trimmer): trimConfig]
+    if (filteredTrimConfig) {
+        usedConfig.trimmer = [(params.trimmer): filteredTrimConfig]
     }
-    if (buildConfig) {
-        usedConfig.tree_builder = [(params.tree_builder): buildConfig]
+    if (filteredBuildConfig) {
+        usedConfig.tree_builder = [(params.tree_builder): filteredBuildConfig]
     }
 
-    def jsonOutput = JsonOutput.toJson(usedConfig)
+    def jsonOutput = groovy.json.JsonOutput.toJson(usedConfig)
     """
     echo '${jsonOutput}' > used_config.json
     """
 }
+
 
 workflow {
 
