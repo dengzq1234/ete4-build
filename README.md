@@ -7,11 +7,24 @@ This script provides a convenient way to run a Nextflow workflow with various co
 - Nextflow
 - Python 3.x
 
+## Quick Start
+
+Single inputs
+\```bash
+python ete_build.py --mode local --script ete_build_dsl2.nf --input data/NUP62.aa.fa --output result/ --aligner mafft --trimmer trimal --tree_builder fasttree  --log result/ --work-dir result/work/
+\```
+
+Multitple inputs
+\```bash
+python ete_build.py --mode local --script ete_build_dsl2.nf --input data/ --output result/ --workflow workflow3  --log result/ --work-dir result/work/
+\```
+
 ## Usage
 
 \```bash
 python script_name.py --mode [local/slurm] --input INPUT_PATH --output OUTPUT_PATH [OPTIONS]
 \```
+
 
 ### Arguments:
 
