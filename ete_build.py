@@ -62,11 +62,20 @@ profiles {
     with open("nextflow.config", "w") as f:
         f.write(config_content)
 
-def run_nextflow(mode, input_file, output_dir, aligner, trimmer, tree_builder, memory, threads, resume=False, script="ete_build_dsl2.nf"):
+def run_nextflow(mode, input_file, output_dir, aligner, trimmer, tree_builder, memory, threads, log_file, work_dir, resume=False, script="ete_build_dsl2.nf"):
     cmd = [
         "nextflow", 
         "-C", "nextflow.config",  # Specify the generated config file
+        "-log", log_file,  # Add log file
         "run", script,
+        "--input", input_file,
+        "--output", output_dir,
+        "--aligner", aligner,
+        "--trimmer", trimmer,
+        "--tree_builder", tree_builder,
+        "--memory", memory,
+        "--thread", str(threads),
+        "-work-dir", work_dir  # Add work directory
     ]
     
     if resume:
@@ -103,6 +112,8 @@ def main():
     parser.add_argument("--tree_builder", default="fasttree", help="Tree building tool.")
     parser.add_argument("--workflow", help="Select a predefined workflow.") #choices=list(PREDEFINED_WORKFLOWS.keys()),
     parser.add_argument("--resume", action="store_true", help="Resume from the last failed step.")
+    parser.add_argument("--log", required=True, help="Log file location.")  # Log file argument
+    parser.add_argument("--work-dir", required=True, help="Work directory location.")  # Work directory argument
 
     args = parser.parse_args()
     
@@ -120,7 +131,7 @@ def main():
     # Generate the Nextflow config AFTER setting the workflow-specific parameters
     generate_nextflow_config(args)
 
-    run_nextflow(args.mode, args.input, args.output, args.aligner, args.trimmer, args.tree_builder, args.memory, args.cpus, args.resume, args.script)
+    run_nextflow(args.mode, args.input, args.output, args.aligner, args.trimmer, args.tree_builder, args.memory, args.cpus, args.log, args.work_dir, args.resume, args.script)
 
 if __name__ == "__main__":
     main()
