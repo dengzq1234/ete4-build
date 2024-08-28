@@ -96,13 +96,17 @@ def deepCopy(map) {
 
 // Function to load and merge custom config
 def loadAndMergeConfig(defaultConfig, customConfigFile) {
-    def config = deepCopy(defaultConfig)
+    def config = [:]  // Start with an empty map
+
     if (customConfigFile) {
-        //println "Loading custom configuration from: ${customConfigFile}"
+        // Load the custom configuration first
         def customConfig = new groovy.json.JsonSlurper().parseText(file(customConfigFile).text)
-        //println "Custom Config: ${customConfig}"
         config = config + customConfig
-    }
+        println "check ${customConfig}"
+    } 
+    // Then add the default configuration, so customConfig has priority
+    config = defaultConfig + config
+    
     println "workflow Config: ${config}"
     return config
 }
@@ -661,6 +665,76 @@ process outputUsedConfig {
     """
 }
 
+process outputUsedConfigAsCfg {
+    input:
+    val alignConfig
+    val trimConfig
+    val buildConfig
+
+    output:
+    path "used_config.cfg"
+
+    publishDir params.output, mode: 'copy'
+
+    script:
+    def configToCfg = { toolType, toolConfigs ->
+        def cfgContent = ""
+        toolConfigs.each { toolName, toolConfig ->
+            def sectionName = "[${toolName}_default]"
+            cfgContent += "${sectionName}\n"
+            cfgContent += "_desc = '${toolName.capitalize()} with default parameters'\n"
+            cfgContent += "_app = ${toolName}\n"
+            
+            toolConfig.each { key, value ->
+                if (key == "name" || value instanceof Map) {
+                    return
+                }
+                if (value instanceof Boolean) {
+                    value = value ? "True" : "False"
+                }
+                cfgContent += "${key} = ${value}\n"
+            }
+
+            if (toolConfig.methods) {
+                toolConfig.methods.each { method, methodSettings ->
+                    sectionName = "[${toolName}_${method}]"
+                    cfgContent += "\n${sectionName}\n"
+                    cfgContent += "_inherits = ${toolName}_default\n"
+                    cfgContent += "_desc = '${toolName.capitalize()} with ${method} method'\n"
+                    methodSettings.each { methodKey, methodValue ->
+                        if (methodValue instanceof Boolean) {
+                            methodValue = methodValue ? "True" : "False"
+                        }
+                        cfgContent += "${methodKey} = ${methodValue}\n"
+                    }
+                }
+            }
+
+            cfgContent += "\n"
+        }
+        return cfgContent
+    }
+
+    def usedConfig = [:]
+    if (alignConfig) {
+        usedConfig.aligner = [(params.aligner): alignConfig]
+    }
+    if (trimConfig) {
+        usedConfig.trimmer = [(params.trimmer): trimConfig]
+    }
+    if (buildConfig) {
+        usedConfig.tree_builder = [(params.tree_builder): buildConfig]
+    }
+
+    def cfgOutput = ""
+    usedConfig.each { toolType, toolConfigs ->
+        cfgOutput += configToCfg(toolType, toolConfigs)
+    }
+
+    """
+    echo '${cfgOutput}' > used_config.cfg
+    """
+}
 
 workflow {
 
@@ -682,7 +756,7 @@ workflow {
     // Output the used configurations to a JSON file
 
     outputUsedConfig(alignConfig, trimConfig, buildConfig)
-
+    outputUsedConfigAsCfg(alignConfig, trimConfig, buildConfig)
     align(parsed_files)
     trim(align.out.aln_seqs)
     build(trim.out.clean_aln_seqs)
