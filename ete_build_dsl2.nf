@@ -19,6 +19,9 @@ def defaultConfig = [
     aligner: [
         mafft: [
             name: "mafft",
+            op: 1.53,
+            ep: 0.123,
+            maxiterate: 0,
             mode: "auto",
             methods: [
                 auto: [flag: "--auto"]

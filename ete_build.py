@@ -124,7 +124,6 @@ def convert_cfg_to_json(cfg_file):
 def run_nextflow(mode, input_file, output_dir, aligner, trimmer, tree_builder, memory, threads, log_file, work_dir, workflow_config=None, resume=False, script="ete_build_dsl2.nf"):
     # If a .cfg file is provided, convert it to a .json file
 
-    # If a .cfg file is provided, convert it to a .json file
     if workflow_config and workflow_config.endswith(".cfg"):
         cfg_json = convert_cfg_to_json(workflow_config)
         json_file = workflow_config.replace(".cfg", ".json")
