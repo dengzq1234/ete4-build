@@ -98,22 +98,65 @@ def deepCopy(map) {
 }
 
 // Function to load and merge custom config
+// def loadAndMergeConfig(defaultConfig, customConfigFile) {
+//     def config = [:]  // Start with an empty map
+
+//     if (customConfigFile) {
+//         // Load the custom configuration first
+//         def customConfig = new groovy.json.JsonSlurper().parseText(file(customConfigFile).text)
+//         config = config + customConfig
+//         // println "check ${customConfig}"
+//     } 
+//     // Then add the default configuration, so customConfig has priority
+//     config = defaultConfig + config
+    
+//     //println "workflow Config: ${config}"
+//     return config
+// }
+// Function to load and merge custom config
 def loadAndMergeConfig(defaultConfig, customConfigFile) {
     def config = [:]  // Start with an empty map
 
     if (customConfigFile) {
         // Load the custom configuration first
         def customConfig = new groovy.json.JsonSlurper().parseText(file(customConfigFile).text)
-        config = config + customConfig
-        // println "check ${customConfig}"
-    } 
-    // Then add the default configuration, so customConfig has priority
+
+        // Only overwrite the aligner, trimmer, and tree_builder if they are not empty
+        if (customConfig.containsKey('aligner') && !customConfig.aligner.isEmpty()) {
+            config.aligner = customConfig.aligner
+        } else {
+            config.aligner = defaultConfig.aligner
+        }
+
+        if (customConfig.containsKey('trimmer') && !customConfig.trimmer.isEmpty()) {
+            config.trimmer = customConfig.trimmer
+        } else {
+            config.trimmer = defaultConfig.trimmer
+        }
+
+        if (customConfig.containsKey('tree_builder') && !customConfig.tree_builder.isEmpty()) {
+            config.tree_builder = customConfig.tree_builder
+        } else {
+            config.tree_builder = defaultConfig.tree_builder
+        }
+
+        // Handle other potential sections of the config that are not aligner, trimmer, or tree_builder
+        customConfig.each { key, value ->
+            if (!['aligner', 'trimmer', 'tree_builder'].contains(key)) {
+                config[key] = value
+            }
+        }
+    } else {
+        // If no custom config is provided, just use the default
+        config = defaultConfig
+    }
+
+    // Then add any other sections from the default config that aren't in the custom config
     config = defaultConfig + config
-    
-    //println "workflow Config: ${config}"
+
+    // Return the final merged configuration
     return config
 }
-
 // Ensure the configuration is loaded before any processes run
 def jsonConfig = loadAndMergeConfig(defaultConfig, params.customConfig)
 
