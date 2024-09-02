@@ -7,6 +7,8 @@ import subprocess
 import tempfile
 import json
 
+import src.mafft as mafft
+
 # Predefined workflows
 PREDEFINED_WORKFLOWS = {
     "workflow1": {"aligner": "mafft", "trimmer": "trimal", "tree_builder": "fasttree"},
@@ -84,17 +86,28 @@ def convert_cfg_to_json(cfg_file):
 
             if line.startswith("[") and line.endswith("]"):
                 if current_section:
-                    # Save the previous section to the correct category
-                    app_type = section_data.get("_app")
-                    if app_type in ALIGNERS:
-                        config["aligner"][current_section] = section_data
-                    elif app_type in TRIMMERS:
-                        config["trimmer"][current_section] = section_data
-                    elif app_type in TREE_BUILDERS:
-                        config["tree_builder"][current_section] = section_data
+                    # Handle MAFFT aligner specifically
+                    if current_section.startswith("mafft"):
+                        aligner_name = "mafft"
+                        # Parse the MAFFT option using the provided function
+                        mafft_config = mafft.parse_mafft_options(current_section)
+                        # Merge the mafft_config with the base MAFFT config
+                        if aligner_name in config["aligner"]:
+                            config["aligner"][aligner_name]["methods"].update(mafft_config["methods"])
+                        else:
+                            config["aligner"][aligner_name] = mafft_config
+                    else:
+                        # Save the previous section to the correct category
+                        app_type = section_data.get("_app")
+                        if app_type in ALIGNERS:
+                            config["aligner"][current_section] = section_data
+                        elif app_type in TRIMMERS:
+                            config["trimmer"][current_section] = section_data
+                        elif app_type in TREE_BUILDERS:
+                            config["tree_builder"][current_section] = section_data
 
                 # Start a new section
-                current_section = line[1:-1].replace("_default", "")
+                current_section = line[1:-1]  # Keep the full section name (e.g., mafft_linsi)
                 section_data = {}
 
             elif "=" in line:
@@ -111,15 +124,25 @@ def convert_cfg_to_json(cfg_file):
 
         # Save the last section
         if current_section:
-            app_type = section_data.get("_app")
-            if app_type in ALIGNERS:
-                config["aligner"][current_section] = section_data
-            elif app_type in TRIMMERS:
-                config["trimmer"][current_section] = section_data
-            elif app_type in TREE_BUILDERS:
-                config["tree_builder"][current_section] = section_data
-
-    return config
+            # Handle MAFFT aligner specifically
+            if current_section.startswith("mafft"):
+                aligner_name = "mafft"
+                # Parse the MAFFT option using the provided function
+                mafft_config = mafft.parse_mafft_options(current_section)
+                # Merge the mafft_config with the base MAFFT config
+                if aligner_name in config["aligner"]:
+                    config["aligner"][aligner_name]["methods"].update(mafft_config["methods"])
+                else:
+                    config["aligner"][aligner_name] = mafft_config
+            else:
+                app_type = section_data.get("_app")
+                if app_type in ALIGNERS:
+                    config["aligner"][current_section] = section_data
+                elif app_type in TRIMMERS:
+                    config["trimmer"][current_section] = section_data
+                elif app_type in TREE_BUILDERS:
+                    config["tree_builder"][current_section] = section_data
+    return config   
 
 def run_nextflow(mode, input_file, output_dir, aligner, trimmer, tree_builder, memory, threads, log_file, work_dir, workflow_config=None, resume=False, script="ete_build_dsl2.nf"):
     # If a .cfg file is provided, convert it to a .json file
@@ -131,6 +154,7 @@ def run_nextflow(mode, input_file, output_dir, aligner, trimmer, tree_builder, m
             json.dump(cfg_json, out_json, indent=4)
         workflow_config = json_file
     
+
     cmd = [
         "nextflow", 
         "-C", "nextflow.config",  # Specify the generated config file
@@ -179,7 +203,7 @@ def main():
     parser.add_argument("--input", required=True, help="Input fasta file or directory.")
     parser.add_argument("--output", required=True, help="Output directory.")
     parser.add_argument("--aligner", default="mafft", help="Alignment tool.")
-    parser.add_argument("--trimmer", default="trimal", help="Trimming tool.")
+    parser.add_argument("--trimmer", default="none", help="Trimming tool.")
     parser.add_argument("--tree_builder", default="fasttree", help="Tree building tool.")
     parser.add_argument("--workflow", help="Select a predefined workflow.") #choices=list(PREDEFINED_WORKFLOWS.keys()),
     parser.add_argument("--resume", action="store_true", help="Resume from the last failed step.")

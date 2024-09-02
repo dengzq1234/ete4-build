@@ -105,12 +105,12 @@ def loadAndMergeConfig(defaultConfig, customConfigFile) {
         // Load the custom configuration first
         def customConfig = new groovy.json.JsonSlurper().parseText(file(customConfigFile).text)
         config = config + customConfig
-        println "check ${customConfig}"
+        // println "check ${customConfig}"
     } 
     // Then add the default configuration, so customConfig has priority
     config = defaultConfig + config
     
-    println "workflow Config: ${config}"
+    //println "workflow Config: ${config}"
     return config
 }
 
@@ -131,10 +131,9 @@ output_dir_structure = { fasta_name -> "${params.output}/${fasta_name}-${params.
 
 // Function to get MAFFT options
 def getMafftOptions(alignConfig) {
-    def methodConfig = alignConfig.methods[alignConfig.mode]
-    def flag = methodConfig?.flag ?: "--auto"
-    def options = "${flag}"
+    def options = ""
 
+    // Handle basic parameters
     if (alignConfig.ep != null) {
         options += " --ep ${alignConfig.ep}"
     }
@@ -144,21 +143,45 @@ def getMafftOptions(alignConfig) {
     if (alignConfig.maxiterate != null) {
         options += " --maxiterate ${alignConfig.maxiterate}"
     }
+    if (alignConfig.retree != null) {
+        options += " --retree ${alignConfig.retree}"
+    }
 
-    // Add matrix options
+    // Add matrix options only if matrix is specified as "BLOSUM" or "PAM"
     if (alignConfig.matrix == "BLOSUM") {
         options += " --bl ${alignConfig.blosum_coefficient}"
     } else if (alignConfig.matrix == "PAM") {
         options += " --jtt ${alignConfig.pam_coefficient}"
     }
 
+    // Handle boolean flags
+    if (alignConfig.auto) {
+        options += " --auto"
+    }
+    if (alignConfig.localpair) {
+        options += " --localpair"
+    }
+    if (alignConfig.globalpair) {
+        options += " --globalpair"
+    }
+    if (alignConfig.genafpair) {
+        options += " --genafpair"
+    }
+    if (alignConfig.nofft) {
+        options += " --nofft"
+    }
+    if (alignConfig.parttree) {
+        options += " --parttree"
+    }
+
+    println "MAFFT Options: ${options}"
     return options
 }
 
 // Function to get MUSCLE options
 def getMuscleOptions(alignConfig) {
     def options = ""
-    options += alignConfig.maxiters ? "-maxiters ${alignConfig.maxiters} " : ""
+    options += alignConfig.maxiters ? "-replicates ${alignConfig.maxiters} " : ""
     options += alignConfig.diags ? "-diags " : ""
     return options
 }
