@@ -257,11 +257,34 @@ def getTcoffeeOptions(alignConfig) {
 }
 
 // Function to get Clustal Omega options
+// def getClustaloOptions(alignConfig) {
+//     def options = ""
+//     options += alignConfig.dealign ? " --dealign" : ""
+//     options += alignConfig.mode == "full" ? " --full" : ""
+//     options += alignConfig.iterations ? " --iterations ${alignConfig.iterations}": ""
+//     return options
+// }
+
 def getClustaloOptions(alignConfig) {
     def options = ""
-    options += alignConfig.dealign ? " --dealign" : ""
-    options += alignConfig.mode == "full" ? " --full" : ""
-    options += alignConfig.iterations ? " --iterations ${alignConfig.iterations}": ""
+    if (alignConfig.dealign) {
+        options += " --dealign"
+    }
+    if (alignConfig.full) {
+        options += " --full"
+    }
+    if (alignConfig.full_iter) {
+        options += " --full-iter"
+    }
+    if (alignConfig.iterations) {
+        options += " --iterations ${alignConfig.iterations}"
+    }
+    if (alignConfig.max_guidetree_iterations) {
+        options += " -- max-guidetree-iterations ${alignConfig.max_guidetree_iterations}"
+    }
+    if (alignConfig.max_hmm_iterations) {
+        options += " --max-hmm-iterations ${alignConfig.max_hmm_iterations}"
+    }
     return options
 }
 

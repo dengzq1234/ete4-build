@@ -9,6 +9,7 @@ import json
 
 import src.mafft as mafft
 import src.muscle as muscle
+import src.clustalo as clustalo
 
 # Predefined workflows
 PREDEFINED_WORKFLOWS = {
@@ -111,6 +112,8 @@ def convert_cfg_to_json(cfg_file, aligner, trimmer, tree_builder):
                             config["aligner"]["mafft"] = mafft_config
                         elif section_data.get("_app") == "muscle":
                             config["aligner"]["muscle"] = muscle.parse_muscle_options(section_data)
+                        elif section_data.get("_app") == "clustalo":
+                            config["aligner"]["clustalo"] = clustalo.parse_clustalo_options(section_data)
                         else:
                             config["aligner"][section_data["_app"]] = section_data
                     elif current_section == trimmer:
@@ -145,6 +148,8 @@ def convert_cfg_to_json(cfg_file, aligner, trimmer, tree_builder):
                     config["aligner"]["mafft"] = mafft_config
                 elif section_data.get("_app") == "muscle":
                         config["aligner"]["muscle"] = muscle.parse_muscle_options(section_data)
+                elif section_data.get("_app") == "clustalo":
+                    config["aligner"]["clustalo"] = parse_clustalo_options(section_data)
                 else:
                     config["aligner"][section_data["_app"]] = section_data
             elif current_section == trimmer:
