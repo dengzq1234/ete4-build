@@ -29,6 +29,8 @@ def defaultConfig = [
         ],
         muscle: [
             name: "muscle",
+            replicates: 16,
+
         ],
         tcoffee: [
             name: "t_coffee"
@@ -225,7 +227,7 @@ def getMafftOptions(alignConfig) {
 def getMuscleOptions(alignConfig) {
     def options = ""
     options += alignConfig.maxiters ? "-replicates ${alignConfig.maxiters} " : ""
-    options += alignConfig.diags ? "-diags " : ""
+    
     return options
 }
 

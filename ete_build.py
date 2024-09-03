@@ -78,15 +78,18 @@ def remove_comment(line):
     return line.strip()
 
 
-def convert_cfg_to_json(cfg_file):
+def convert_cfg_to_json(cfg_file, aligner, trimmer, tree_builder):
     """
-    Convert a .cfg file to a JSON-like dictionary for all tools (aligner, trimmer, tree_builder).
+    Convert a .cfg file to a JSON-like dictionary for the specified tools (aligner, trimmer, tree_builder).
     
     Parameters:
     - cfg_file (str): Path to the .cfg file.
+    - aligner (str): The exact aligner to filter and include in the config.
+    - trimmer (str): The exact trimmer to filter and include in the config.
+    - tree_builder (str): The exact tree builder to filter and include in the config.
     
     Returns:
-    - dict: A dictionary representing the full configuration for JSON.
+    - dict: A dictionary representing the filtered configuration for JSON.
     """
     config = {"aligner": {}, "trimmer": {}, "tree_builder": {}}
     current_section = None
@@ -100,29 +103,20 @@ def convert_cfg_to_json(cfg_file):
 
             if line.startswith("[") and line.endswith("]"):
                 if current_section:
-                    # Determine the correct parser based on the _app value
-                    app_type = section_data.get("_app")
-                    if app_type == "mafft":
-                        mafft_config = mafft.parse_mafft_options(section_data)
-                        config["aligner"]["mafft"] = mafft_config
-                    elif app_type in ALIGNERS:
-                        if app_type not in config["aligner"]:
-                            config["aligner"][app_type] = section_data
+                    # Determine the correct parser based on the full section name
+                    if current_section == aligner:
+                        if section_data.get("_app") == "mafft":
+                            mafft_config = mafft.parse_mafft_options(section_data)
+                            config["aligner"]["mafft"] = mafft_config
                         else:
-                            config["aligner"][app_type].update(section_data)
-                    elif app_type in TRIMMERS:
-                        if app_type not in config["trimmer"]:
-                            config["trimmer"][app_type] = section_data
-                        else:
-                            config["trimmer"][app_type].update(section_data)
-                    elif app_type in TREE_BUILDERS:
-                        if app_type not in config["tree_builder"]:
-                            config["tree_builder"][app_type] = section_data
-                        else:
-                            config["tree_builder"][app_type].update(section_data)
+                            config["aligner"][section_data["_app"]] = section_data
+                    elif current_section == trimmer:
+                        config["trimmer"][section_data["_app"]] = section_data
+                    elif current_section == tree_builder:
+                        config["tree_builder"][section_data["_app"]] = section_data
                 
                 # Start a new section
-                current_section = line[1:-1]
+                current_section = line[1:-1]  # Keep the full section name
                 section_data = {}
 
             elif "=" in line:
@@ -142,32 +136,24 @@ def convert_cfg_to_json(cfg_file):
 
         # Handle the last section
         if current_section:
-            app_type = section_data.get("_app")
-            if app_type == "mafft":
-                mafft_config = mafft.parse_mafft_options(section_data)
-                config["aligner"]["mafft"] = mafft_config
-            elif app_type in ALIGNERS:
-                if app_type not in config["aligner"]:
-                    config["aligner"][app_type] = section_data
+            if current_section == aligner:
+                if section_data.get("_app") == "mafft":
+                    mafft_config = mafft.parse_mafft_options(section_data)
+                    config["aligner"]["mafft"] = mafft_config
                 else:
-                    config["aligner"][app_type].update(section_data)
-            elif app_type in TRIMMERS:
-                if app_type not in config["trimmer"]:
-                    config["trimmer"][app_type] = section_data
-                else:
-                    config["trimmer"][app_type].update(section_data)
-            elif app_type in TREE_BUILDERS:
-                if app_type not in config["tree_builder"]:
-                    config["tree_builder"][app_type] = section_data
-                else:
-                    config["tree_builder"][app_type].update(section_data)
+                    config["aligner"][section_data["_app"]] = section_data
+            elif current_section == trimmer:
+                config["trimmer"][section_data["_app"]] = section_data
+            elif current_section == tree_builder:
+                config["tree_builder"][section_data["_app"]] = section_data
 
     return config
 
 def run_nextflow(mode, input_file, output_dir, aligner, trimmer, tree_builder, memory, threads, log_file, work_dir, workflow_config=None, resume=False, script="ete_build_dsl2.nf"):
     if workflow_config and workflow_config.endswith(".cfg"):
-        cfg_json = convert_cfg_to_json(workflow_config)
+        cfg_json = convert_cfg_to_json(workflow_config, aligner, trimmer, tree_builder)
         json_file = workflow_config.replace(".cfg", ".json")
+        
         with open(json_file, 'w') as out_json:
             json.dump(cfg_json, out_json, indent=4)
         workflow_config = json_file

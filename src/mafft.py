@@ -1,103 +1,44 @@
-# mafft.py
-
-def parse_mafft_options(aligner_option):
+def parse_mafft_options(section_data):
     """
-    Parse the MAFFT aligner option and return the appropriate JSON configuration.
+    Parse MAFFT options from the provided section data.
     
     Parameters:
-    - aligner_option (str): The MAFFT option passed via command-line (e.g., "mafft_default", "mafft_linsi")
+    - section_data (dict): The section data extracted from the cfg file.
     
     Returns:
-    - dict: A dictionary representing the MAFFT configuration to be used in the JSON config.
+    - dict: A dictionary representing the MAFFT configuration.
     """
-    # Base configuration for MAFFT
-    mafft_base_config = {
+    mafft_config = {
         "name": "mafft",
-        "mode": "auto",
-        "op": 1.53,
-        "ep": 0.123,
-        "maxiterate": 0,
-        "matrix": "",
-        "blosum_coefficient": 62,
-        "pam_coefficient": 80,
-        "methods": {}
+        "mode": section_data.get("mode","auto"),
+        "op": section_data.get("op", 1.53),
+        "ep": section_data.get("ep", 0.123),
+        "maxiterate": section_data.get("maxiterate", 0),
+        "matrix": section_data.get("matrix", "").upper() if section_data.get("matrix") else "",
+        "blosum_coefficient": section_data.get("blosum_coefficient", 62),
+        "pam_coefficient": section_data.get("pam_coefficient", 80),
+        "auto": section_data.get("mode","auto") == "auto",  # Automatically set to True if mode is "auto"
+        "localpair": section_data.get("localpair", False),
+        "globalpair": section_data.get("globalpair", False),
+        "genafpair": section_data.get("genafpair", False),
+        "retree": section_data.get("retree", None),
+        "nofft": section_data.get("nofft", False),
+        "parttree": section_data.get("parttree", False),
     }
-
-    # Method-specific configurations
-    method_specific_configs = {
-        "mafft_default": {
-            "methods": {
-                "auto": {"flag": "--auto"}
-            }
-        },
-        "mafft_linsi": {
-            "methods": {
-                "linsi": {"flag": "--localpair --maxiterate 1000"}
-            }
-        },
-        "mafft_ginsi": {
-            "methods": {
-                "ginsi": {"flag": "--globalpair --maxiterate 1000"}
-            }
-        },
-        "mafft_einsi": {
-            "methods": {
-                "einsi": {"flag": "--ep 0 --genafpair --maxiterate 1000"}
-            }
-        },
-        "mafft_fftnsi": {
-            "methods": {
-                "fftnsi": {"flag": "--retree 2 --maxiterate 2"}
-            }
-        },
-        "mafft_fftnsi_max": {
-            "methods": {
-                "fftnsi_max": {"flag": "--retree 2 --maxiterate 1000"}
-            }
-        },
-        "mafft_fftns": {
-            "methods": {
-                "fftns": {"flag": "--retree 2 --maxiterate 0"}
-            }
-        },
-        "mafft_fftns1": {
-            "methods": {
-                "fftns1": {"flag": "--retree 1 --maxiterate 0"}
-            }
-        },
-        "mafft_nwnsi": {
-            "methods": {
-                "nwnsi": {"flag": "--retree 2 --maxiterate 2 --nofft"}
-            }
-        },
-        "mafft_nwns": {
-            "methods": {
-                "nwns": {"flag": "--retree 2 --maxiterate 0 --nofft"}
-            }
-        },
-        "mafft_nwns_parttree": {
-            "methods": {
-                "nwns_parttree": {"flag": "--retree 1 --maxiterate 0 --nofft --parttree"}
-            }
-        }
-    }
-
-    # Apply the specific method configuration to the base config
-    if aligner_option in method_specific_configs:
-        for key, value in method_specific_configs[aligner_option].items():
-            if key == "methods":
-                mafft_base_config["methods"].update(value)
-            else:
-                mafft_base_config[key] = value
-    else:
-        raise ValueError(f"Unknown MAFFT option: {aligner_option}")
-
-    return mafft_base_config
-
+    return mafft_config
 
 if __name__ == "__main__":
     # Example usage
-    import sys
-    aligner_option = sys.argv[1]  # e.g., "mafft_linsi"
-    mafft_config = parse_mafft_options(aligner_option)
-    print(mafft_config)
+    section_example = {
+        "_app": "mafft",
+        "mode": "linsi",
+        "op": 1.53,
+        "ep": 0.123,
+        "maxiterate": 1000,
+        "matrix": "",
+        "blosum_coefficient": 62,
+        "pam_coefficient": 80,
+        "flag": "--localpair --maxiterate 1000"
+    }
+    config = parse_mafft_options(section_example)
+    print(config)
