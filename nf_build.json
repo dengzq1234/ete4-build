@@ -2,132 +2,21 @@
     "aligner": {
         "mafft": {
             "name": "mafft",
-            "mode": "auto",
             "op": 1.53,
             "ep": 0.123,
             "maxiterate": 0,
             "matrix": "",
             "blosum_coefficient": 62,
             "pam_coefficient": 80,
-            "methods": {
-                "auto": {
-                    "flag": "--auto"
-                },
-                "linsi": {
-                    "flag": "--localpair --maxiterate 1000"
-                },
-                "ginsi": {
-                    "flag": "--globalpair --maxiterate 1000"
-                },
-                "einsi": {
-                    "flag": "--ep 0 --genafpair --maxiterate 1000"
-                },
-                "fftnsi": {
-                    "flag": "--retree 2 --maxiterate 2"
-                },
-                "fftnsi_max": {
-                    "flag": "--retree 2 --maxiterate 1000"
-                },
-                "fftns": {
-                    "flag": "--retree 2 --maxiterate 0"
-                },
-                "fftns1": {
-                    "flag": "--retree 1 --maxiterate 0"
-                },
-                "nwnsi": {
-                    "flag": "--retree 2 --maxiterate 2 --nofft"
-                },
-                "nwns": {
-                    "flag": "--retree 2 --maxiterate 0 --nofft"
-                },
-                "nwns_parttree": {
-                    "flag": "--retree 1 --maxiterate 0 --nofft --parttree"
-                }
-            }
-        },
-        "muscle_default": {
-            "_desc": "'Muscle with default parameters'",
-            "_app": "muscle",
-            "maxiters": 16,
-            "diags": true
-        },
-        "clustalo_default": {
-            "_desc": "'Clustalo with default parameters'",
-            "_app": "clustalo",
-            "dealign": false,
-            "mode": "default",
-            "iterations": 10
-        },
-        "famsa_default": {
-            "_desc": "'Famsa with default parameters'",
-            "_app": "famsa",
-            "gt": "sl",
-            "iterations": 100
+            "auto": true,
+            "localpair": false,
+            "globalpair": false,
+            "genafpair": false,
+            "retree": 2,
+            "nofft": false,
+            "parttree": false
         }
     },
-    "trimmer": {
-        "trimal_default": {
-            "_desc": "'Trimal with default parameters'",
-            "_app": "trimal",
-            "gt": 0.1,
-            "st": 0,
-            "ct": 0
-        },
-        "trim_alg_v2_default": {
-            "_desc": "'Trim_alg_v2 with default parameters'",
-            "_app": "trim_alg_v2",
-            "min_res_abs": 5,
-            "min_res_percent": 0.5
-        },
-        "clipkit_default": {
-            "_desc": "'Clipkit with default parameters'",
-            "_app": "clipkit",
-            "mode": "smart-gap",
-            "gap-threshold": 0.9,
-            "codon": false
-        }
-    },
-    "tree_builder": {
-        "fasttree_default": {
-            "_desc": "'Fasttree with default parameters'",
-            "_app": "fasttree",
-            "datatype": "aa",
-            "model": "JTT",
-            "pseudo": 1.0,
-            "gamma": true,
-            "branch_support": true,
-            "bootstrap_rep": 1000
-        },
-        "phyml_default": {
-            "_desc": "'Phyml with default parameters'",
-            "_app": "phyml",
-            "model": "JTT",
-            "datatype": "aa",
-            "equilibrium_freq": "empirical",
-            "prop_invar": 0,
-            "gamma": 0,
-            "branch_support": "bootstrap",
-            "bootstrap": "fbp",
-            "bootstrap_rep": 2,
-            "r_seed": 123456
-        },
-        "raxml_default": {
-            "_desc": "'Raxml with default parameters'",
-            "_app": "raxml",
-            "algorithm": "d",
-            "r_seed": 31416,
-            "model": "PROTGAMMAJTT",
-            "bootstrap_rep": 100
-        },
-        "iqtree_default": {
-            "_desc": "'Iqtree with default parameters'",
-            "_app": "iqtree",
-            "st": "AA",
-            "alrt": 1000,
-            "seed": 31416,
-            "mode": "TEST",
-            "bootstrap_rep": 1001,
-            "bootstrap": "fbp"
-        }
-    }
+    "trimmer": {},
+    "tree_builder": {}
 }

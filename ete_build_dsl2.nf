@@ -21,15 +21,11 @@ def defaultConfig = [
             name: "mafft",
             op: 1.53,
             ep: 0.123,
-            maxiterate: 0,
-            mode: "auto",
-            methods: [
-                auto: [flag: "--auto"]
-            ]
+            maxiterate: 0
+            
         ],
         muscle: [
-            name: "muscle",
-            replicates: 16,
+            name: "muscle"
 
         ],
         tcoffee: [
@@ -200,6 +196,7 @@ def getMafftOptions(alignConfig) {
     }
 
     // Handle boolean flags
+    println "AlignConfig: ${alignConfig.auto}"
     if (alignConfig.auto) {
         options += " --auto"
     }
@@ -226,8 +223,30 @@ def getMafftOptions(alignConfig) {
 // Function to get MUSCLE options
 def getMuscleOptions(alignConfig) {
     def options = ""
-    options += alignConfig.maxiters ? "-replicates ${alignConfig.maxiters} " : ""
+    if (alignConfig.replicates) {
+        options += " -replicates ${alignConfig.replicates}"
+    }
+    if (alignConfig.perturb) {
+        options += " -perturb ${alignConfig.perturb}"
+    }
+    if (alignConfig.perm) {
+        options += " -perm ${alignConfig.perm}"
+    }
+    if (alignConfig.consiters){
+        options += " -consiters ${alignConfig.consiters}"
+    }
+    if (alignConfig.refineiters) {
+        options += " -refineiters ${alignConfig.refineiters}"
+    }
     
+    if (alignConfig.stratified) {
+        options += " -stratified"
+    }
+    if (alignConfig.diversified) {
+        options += " -diversified"
+    }
+
+    println "MUSCLE Options: ${options}"
     return options
 }
 
@@ -536,7 +555,7 @@ process align {
         if [ "${params.aligner}" == "mafft" ]; then
             ${alignCmd} ${alignOptions} --thread ${params.thread} $fasta_file > ${fasta_name}.aln.faa 2> align.err
         elif [ "${params.aligner}" == "muscle" ]; then
-            ${alignCmd} ${alignOptions} -align $fasta_file -output ${fasta_name}.aln.faa 2> align.err
+            ${alignCmd} -align $fasta_file -output ${fasta_name}.aln.faa ${alignOptions} 2> align.err
         elif [ "${params.aligner}" == "tcoffee" ]; then
             ${alignCmd} ${alignOptions} -in $fasta_file -outfile=${fasta_name}.aln.faa 2> align.err
         elif [ "${params.aligner}" == "clustalo" ]; then
