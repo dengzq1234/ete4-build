@@ -22,11 +22,9 @@ def defaultConfig = [
             op: 1.53,
             ep: 0.123,
             maxiterate: 0
-            
         ],
         muscle: [
             name: "muscle"
-
         ],
         tcoffee: [
             name: "t_coffee"
@@ -47,7 +45,7 @@ def defaultConfig = [
         clipkit: [
             name: "clipkit",
             mode: "smart-gap",
-            gap_threshold: 0.9,
+            gaps: 0.9,
             codon: false
         ],
         trim_alg_v2: [
@@ -62,15 +60,17 @@ def defaultConfig = [
         ],
         phyml: [
             name: "phyml",
-            datatype: "aa",
-            aa_models: ["LG", "WAG", "JTT", "MtREV", "Dayhoff", "DCMut", "RtREV", "CpREV", "VT", "AB", "Blosum62", "MtMam", "MtArt", "HIVw", "HIVb"],
-            nt_models: ["HKY85", "JC69", "K80", "F81", "F84", "TN93", "GTR"],
-            model: "JTT",
-            no_memory_check: true,
-            branch_support: "Bayes", // Chi2
-            equilibrium_freq: "ml", //empirical
-            prop_invar: "e",
-            gamma: "e"
+            // datatype: 'aa',
+            aa_model: "LG",  // Updated from the cfg
+            nt_model: "HKY85",  // Updated from the cfg
+            pinv: "e",  // Proportion of invariable sites, 'e' for estimation
+            alpha: "e",  // Gamma distribution shape parameter, 'e' for estimation
+            nclasses: 4,  // Number of rate categories
+            optimisation: "tlr",  // Updated from the cfg
+            frequencies: "m",  // Updated from the cfg
+            bootstrap: -2,  // Updated to default Chi2-based parametric branch supports
+            tbe: false,  // Disable TBE
+            r_seed: 123456,  // Random seed
         ],
         raxml: [
             name: "raxmlHPC",
@@ -280,36 +280,142 @@ def getClustaloOptions(alignConfig) {
         options += " --iterations ${alignConfig.iterations}"
     }
     if (alignConfig.max_guidetree_iterations) {
-        options += " -- max-guidetree-iterations ${alignConfig.max_guidetree_iterations}"
+        options += " --max-guidetree-iterations ${alignConfig.max_guidetree_iterations}"
     }
     if (alignConfig.max_hmm_iterations) {
         options += " --max-hmm-iterations ${alignConfig.max_hmm_iterations}"
     }
+    println "Clustal Omega Options: ${options}"
     return options
 }
 
 // Function to get FAMSA options
 def getFamsaOptions(alignConfig) {
     def options = ""
-    options += alignConfig.gt ? " -gt ${alignConfig.gt}" : ""
-    options += alignConfig.iterations ? " -r ${alignConfig.iterations}" : ""
+
+    // Handle guide tree (gt)
+    if (alignConfig.gt) {
+        options += " -gt ${alignConfig.gt}"
+    }
+
+    // Handle medoid tree option
+    if (alignConfig.medoidtree ) {
+        options += " -medoidtree"
+    }
+
+    // Handle refine mode
+    if (alignConfig.refine_mode) {
+        options += " -refine_mode ${alignConfig.refine_mode}"
+    }
+
+    // Handle refinement iterations (r)
+    if (alignConfig.r != null) {
+        options += " -r ${alignConfig.r}"
+    }
+
+    // Handle gap penalties
+    if (alignConfig.go != null) {
+        options += " -go ${alignConfig.go}"
+    }
+    if (alignConfig.ge != null) {
+        options += " -ge ${alignConfig.ge}"
+    }
+    if (alignConfig.tgo != null) {
+        options += " -tgo ${alignConfig.tgo}"
+    }
+    if (alignConfig.tge != null) {
+        options += " -tge ${alignConfig.tge}"
+    }
+
+    // Handle gap cost scaler terms
+    if (alignConfig.gsd != null) {
+        options += " -gsd ${alignConfig.gsd}"
+    }
+    if (alignConfig.gsl != null) {
+        options += " -gsl ${alignConfig.gsl}"
+    }
+
+    // Handle disabling options (dgr, dgo, dsp)
+    if (alignConfig.dgr != null && alignConfig.dgr) {
+        options += " -dgr"
+    }
+    if (alignConfig.dgo != null && alignConfig.dgo) {
+        options += " -dgo"
+    }
+    if (alignConfig.dsp != null && alignConfig.dsp) {
+        options += " -dsp"
+    }
+    println "Famsa Options: ${options}"
     return options
 }
+
 
 // Function to get Trimal options
 def getTrimalOptions(trimConfig) {
     def options = ""
-    options += trimConfig.gt ? "-gt ${trimConfig.gt} " : ""
-    options += trimConfig.st ? "-st ${trimConfig.st} " : ""
-    options += trimConfig.ct ? "-ct ${trimConfig.ct} " : ""
+
+    // Handle gap threshold (gt)
+    if (trimConfig.gt != null) {
+        options += "-gt ${trimConfig.gt} "
+    }
+
+    // Handle minimum average similarity threshold (st)
+    if (trimConfig.st != null) {
+        options += "-st ${trimConfig.st} "
+    }
+
+    // Handle minimum percentage of positions to conserve (ct)
+    if (trimConfig.ct != null) {
+        options += "-ct ${trimConfig.ct} "
+    }
+
+    // Handle gappyout option
+    if (trimConfig.gappyout == true) {
+        options += "-gappyout "
+    }
+
+    // Handle sliding window size (w)
+    if (trimConfig.w != null) {
+        options += "-w ${trimConfig.w} "
+    }
+
+    // Handle strictplus option (for NJ tree reconstruction)
+    if (trimConfig.strictplus == true) {
+        options += "-strictplus "
+    }
+
+    // Handle automated1 option (for ML tree reconstruction)
+    if (trimConfig.automated1 == true) {
+        options += "-automated1 "
+    }
+    println "Trimal Options: ${options}"
+    // Return the assembled options string
     return options
 }
 
 // Function to get Clipkit options
 def getClipkitOptions(trimConfig) {
-    def options = "--mode ${trimConfig.mode} "
-    options += "--gaps ${trimConfig['gap-threshold']} "
-    options += trimConfig.codon ? "--codon " : ""
+    def options = ""
+
+    // Ensure mode is specified, otherwise use a default
+    if (trimConfig.mode) {
+        options += "--mode ${trimConfig.mode} "
+    } else {
+        options += "--mode smart-gap " // Default mode
+    }
+
+    // Handle gaps threshold
+    if (trimConfig.gaps != null) {
+        options += "--gaps ${trimConfig.gaps} "
+    } else {
+        options += "--gaps 0.9 " // Default gap threshold
+    }
+
+    // Handle codon mode
+    if (trimConfig.codon) {
+        options += "--codon "
+    }
+    println "Clipkit Options: ${options}"
     return options
 }
 
@@ -317,6 +423,7 @@ def getTrimAlgV2Options(trimConfig) {
     def options = ""
     options += trimConfig.min_res_abs ? "--min_res_abs ${trimConfig.min_res_abs} " : ""
     options += trimConfig.min_res_percent ? "--min_res_percent ${trimConfig.min_res_percent} " : ""
+    println "TrimAlgV2 Options: ${options}"
     return options
 }
 
@@ -324,113 +431,285 @@ def getTrimAlgV2Options(trimConfig) {
 def getFastTreeOptions(buildConfig) {
     def options = ""
 
-    // Handle datatype
-    if (buildConfig.datatype == "nt") {
-        options += " -nt"
-    }
-    // Handle model for aa
-    if (buildConfig.datatype == "aa") {
-        switch (buildConfig.model) {
+    // Handle model for amino acids
+    if (buildConfig.aa_model) {
+        switch (buildConfig.aa_model) {
             case "LG":
                 options += " -lg"
                 break
             case "WAG":
                 options += " -wag"
                 break
-            // No need to add anything for JTT
+            case "JTT":
+                break
+            // No need to add anything for the default model (JTT+CAT)
         }
     }
-    // Handle model for nt
-    if (buildConfig.datatype == "nt") {
-        switch (buildConfig.model) {
+
+    // Handle model for nucleotides
+    if (buildConfig.nt_model) {
+        switch (buildConfig.nt_model) {
             case "GTR":
                 options += " -gtr"
                 break
-            // No need to add anything for JC
+            case "JC":
+                break
         }
     }
-    // Handle gamma
+
+    // Handle gamma distribution
     if (buildConfig.gamma) {
         options += " -gamma"
     }
-    // Handle pseudo
-    if (buildConfig.pseudo != null) {
-        options += " -pseudo ${buildConfig.pseudo}"
-    }
-    // Handle branch support
-    if (buildConfig.branch_support) {
-        options += " -boot ${buildConfig.bootstrap_rep ?: 1000}"
+
+    // Handle pseudo-likelihood support values
+    if (buildConfig.pseudo) {
+        options += " -pseudo"
     }
 
+    // Handle bootstrap or nosupport
+    if (buildConfig.bootstrap == 0) {
+        options += " -nosupport"
+    } else if (buildConfig.bootstrap) {
+        options += " -boot ${buildConfig.bootstrap ?: 1000}"
+    }
+    // Handle SPR rounds (minimum-evolution SPR moves)
+    if (buildConfig.spr != null) {
+        options += " -spr ${buildConfig.spr}"
+    }
+
+    // Handle ML model accuracy categories (MLACC)
+    if (buildConfig.mlacc != null) {
+        options += " -mlacc ${buildConfig.mlacc}"
+    }
+
+    // Handle slow NNI moves
+    if (buildConfig.slownni) {
+        options += " -slownni"
+    }
+    println "FastTree Options: ${options}"
     return options
 }
 
 // Function to get PhyML options
-def getPhymlOptions(buildConfig) {
+// def getPhymlOptions(buildConfig) {
+//     def options = ""
+//     options += buildConfig.model ? "-m ${buildConfig.model} " : ""
+//     //options += buildConfig.datatype ? "-d ${buildConfig.datatype} " : ""
+//     options += buildConfig.no_memory_check ? "--no_memory_check " : ""
+
+//     if (buildConfig.branch_support) {
+//         switch(buildConfig.branch_support) {
+//             case "bootstrap":
+//                 options += "-b ${buildConfig.bootstrap_rep ?: 100} "
+//                 if (buildConfig.bootstrap == "tbe") {
+//                     options += "--tbe "
+//                 }
+//                 break
+//             case "None":
+//                 options += "-b 0 "
+//                 break
+//             case "aLRT":
+//                 options += "-b -1 "
+//                 break
+//             case "Chi2":
+//                 options += "-b -2 "
+//                 break
+//             case "SH":
+//                 options += "-b -4 "
+//                 break
+//             case "Bayes":
+//                 options += "-b -5 "
+//                 break
+//             default:
+//                 throw new Exception("Invalid branch support type: ${buildConfig.branch_support}")
+//         }
+//     }
+
+//     if (buildConfig.equilibrium_freq) {
+//         switch(buildConfig.equilibrium_freq) {
+//             case "empirical":
+//                 options += "-f e "
+//                 break
+//             case "ml":
+//                 options += "-f m "
+//                 break
+//             default:
+//                 throw new Exception("Invalid equilibrium frequency: ${buildConfig.equilibrium_freq}")
+//         }
+//     }
+
+//     if (buildConfig.prop_invar) {
+//         if (buildConfig.prop_invar == "e") {
+//             options += "--pinv e "
+//         } else {
+//             options += "--pinv ${buildConfig.prop_invar} "
+//         }
+//     }
+
+//     if (buildConfig.gamma) {
+//         if (buildConfig.gamma == "e") {
+//             options += "--gamma e "
+//         } else {
+//             options += "--gamma ${buildConfig.gamma} "
+//         }
+//     }
+
+//     return options
+// }
+
+// Function to get PhyML options
+def getPhymlOptions(buildConfig, aln_type) {
     def options = ""
-    options += buildConfig.model ? "-m ${buildConfig.model} " : ""
-    options += buildConfig.datatype ? "-d ${buildConfig.datatype} " : ""
-    options += buildConfig.no_memory_check ? "--no_memory_check " : ""
+    // check point for datatype
+    // Handle amino acid models
+    if (aln_type == 'aa') {
+        if (buildConfig.aa_model) {
+            switch (buildConfig.aa_model) {
+                case "LG":
+                    options += " -m LG"
+                    break
+                case "WAG":
+                    options += " -m WAG"
+                    break
+                case "JTT":
+                    options += " -m JTT"
+                    break
+                case "MtREV":
+                    options += " -m MtREV"
+                    break
+                case "Dayhoff":
+                    options += " -m Dayhoff"
+                    break
+                case "DCMut":
+                    options += " -m DCMut"
+                    break
+                case "RtREV":
+                    options += " -m RtREV"
+                    break
+                case "CpREV":
+                    options += " -m CpREV"
+                    break
+                case "VT":
+                    options += " -m VT"
+                    break
+                case "AB":
+                    options += " -m AB"
+                    break
+                case "Blosum62":
+                    options += " -m Blosum62"
+                    break
+                case "MtMam":
+                    options += " -m MtMam"
+                    break
+                case "MtArt":
+                    options += " -m MtArt"
+                    break
+                case "HIVw":
+                    options += " -m HIVw"
+                    break
+                case "HIVb":
+                    options += " -m HIVb"
+                    break
+                case "custom":
+                    options += " -m custom"
+                    break
+            }
+        }
+    } else {
+        // Handle nucleotide models
+        if (buildConfig.nt_model) {
+            switch (buildConfig.nt_model) {
+                case "HKY85":
+                    options += " -m HKY85"
+                    break
+                case "JC69":
+                    options += " -m JC69"
+                    break
+                case "K80":
+                    options += " -m K80"
+                    break
+                case "F81":
+                    options += " -m F81"
+                    break
+                case "F84":
+                    options += " -m F84"
+                    break
+                case "TN93":
+                    options += " -m TN93"
+                    break
+                case "GTR":
+                    options += " -m GTR"
+                    break
+                case "custom":
+                    options += " -m custom"
+                    break
+            }
+        }
+    }
+    
 
-    if (buildConfig.branch_support) {
-        switch(buildConfig.branch_support) {
-            case "bootstrap":
-                options += "-b ${buildConfig.bootstrap_rep ?: 100} "
-                if (buildConfig.bootstrap == "tbe") {
-                    options += "--tbe "
-                }
+    
+
+    // Handle proportion of invariable sites (pinv)
+    if (buildConfig.pinv != null) {
+        options += buildConfig.pinv == "e" ? " --pinv e" : " --pinv ${buildConfig.pinv}"
+    }
+
+    // Handle gamma distribution shape parameter (alpha)
+    if (buildConfig.alpha != null) {
+        options += buildConfig.alpha == "e" ? " --alpha e" : " --alpha ${buildConfig.alpha}"
+    }
+
+    // Handle number of rate categories (nclasses)
+    if (buildConfig.nclasses) {
+        options += " --nclasses ${buildConfig.nclasses}"
+    }
+
+    // Handle tree optimisation (optimisation)
+    if (buildConfig.optimisation) {
+        options += " -o ${buildConfig.optimisation}"
+    }
+
+    // Handle frequencies (frequencies)
+    if (buildConfig.frequencies) {
+        switch (buildConfig.frequencies) {
+            case "e":
+                options += " -f e"
                 break
-            case "None":
-                options += "-b 0 "
+            case "m":
+                options += " -f m"
                 break
-            case "aLRT":
-                options += "-b -1 "
-                break
-            case "Chi2":
-                options += "-b -2 "
-                break
-            case "SH":
-                options += "-b -4 "
-                break
-            case "Bayes":
-                options += "-b -5 "
+            case "o":
+                options += " -f o"
                 break
             default:
-                throw new Exception("Invalid branch support type: ${buildConfig.branch_support}")
-        }
-    }
-
-    if (buildConfig.equilibrium_freq) {
-        switch(buildConfig.equilibrium_freq) {
-            case "empirical":
-                options += "-f e "
+                options += " -f ${buildConfig.frequencies}"
                 break
-            case "ml":
-                options += "-f m "
-                break
-            default:
-                throw new Exception("Invalid equilibrium frequency: ${buildConfig.equilibrium_freq}")
         }
     }
 
-    if (buildConfig.prop_invar) {
-        if (buildConfig.prop_invar == "e") {
-            options += "--pinv e "
-        } else {
-            options += "--pinv ${buildConfig.prop_invar} "
-        }
+    // Handle bootstrap or branch support (-b)
+    if (buildConfig.bootstrap) {
+        options += " -b ${buildConfig.bootstrap}"
     }
 
-    if (buildConfig.gamma) {
-        if (buildConfig.gamma == "e") {
-            options += "--gamma e "
-        } else {
-            options += "--gamma ${buildConfig.gamma} "
-        }
+    // Handle TBE instead of FBP if tbe is True
+    if (buildConfig.tbe) {
+        options += " --tbe"
     }
+
+    // Handle random seed (-r)
+    if (buildConfig.r_seed) {
+        options += " --r_seed ${buildConfig.r_seed}"
+    }
+
+    options += " --quiet"
+    options += " --no_memory_check"
 
     return options
 }
+
 
 // Function to get RAxML options
 def getRaxmlOptions(buildConfig) {
@@ -477,6 +756,50 @@ def filterUsedTreeBuilderConfig(buildConfig) {
     def usedTreeBuilderConfig = buildConfig.clone()
     return usedTreeBuilderConfig
 }
+
+// def detectAlignmentType(alignmentFile) {
+//     def nucleotides = ['A', 'T', 'G', 'C', 'U', 'N']
+//     def aa_regex = ~/(?i)^[ACDEFGHIKLMNPQRSTVWYXBZ]+$/  // Regex for amino acids (IUPAC standard)
+//     println "Detecting sequence type for: ${alignmentFile}"
+//     def sequenceData = file(alignmentFile).text
+//     def lines = sequenceData.readLines().findAll { !it.startsWith(">") && !it.isEmpty() } // Remove header lines
+    
+//     def first_sequence = lines.join().toUpperCase()
+    
+//     if (nucleotides.any { first_sequence.contains(it) }) {
+//         return "nt"
+//     } else if (first_sequence.matches(aa_regex)) {
+//         return "aa"
+//     } else {
+//         throw new Exception("Cannot determine sequence type for: ${alignmentFile}")
+//     }
+// }
+
+def detectAlignmentType(alignmentFile) {
+    // Open the file and read a sample of sequences
+    def lines = file(alignmentFile).readLines()
+
+    // Concatenate all sequence lines (ignoring lines that look like headers or gaps)
+    def sequenceData = lines.findAll { line -> !line.startsWith(">") && line.trim() != "" }
+                             .join("")
+                             .replace("-", "")  // Ignore gaps ("-")
+
+    // Regular expressions for nucleotides and amino acids (case-insensitive with (?i))
+    def nt_regex = /(?i)^[ACGTURYKMSWBDHVN]+$/    // IUPAC codes for nucleotides
+    def aa_regex = /(?i)^[ACDEFGHIKLMNPQRSTVWYBXZ]+$/ // IUPAC codes for amino acids
+
+    // Check if the sequence data matches nucleotide or amino acid patterns
+    if (nt_regex.matcher(sequenceData).matches()) {
+        return "nt"
+    } else if (aa_regex.matcher(sequenceData).matches()) {
+        return "aa"
+    } else {
+        throw new Exception("Cannot determine alignment type. Neither nucleotide nor amino acid patterns match.")
+    }
+}
+
+
+
 
 process parseFasta {
     cpus 1
@@ -580,7 +903,7 @@ process align {
         elif [ "${params.aligner}" == "muscle" ]; then
             ${alignCmd} -align $fasta_file -output ${fasta_name}.aln.faa ${alignOptions} 2> align.err
         elif [ "${params.aligner}" == "tcoffee" ]; then
-            ${alignCmd} ${alignOptions} -in $fasta_file -outfile=${fasta_name}.aln.faa 2> align.err
+            ${alignCmd} ${alignOptions} -in $fasta_file -output=fasta_aln -outfile=${fasta_name}.aln.faa 2> align.err
         elif [ "${params.aligner}" == "clustalo" ]; then
             ${alignCmd} ${alignOptions} --threads ${params.thread} -i $fasta_file -o ${fasta_name}.aln.faa 2> align.err
         elif [ "${params.aligner}" == "famsa" ]; then
@@ -668,6 +991,7 @@ process build {
     
     input:
     path clean_aln_file 
+    //val aln_type  // Accept alignment type as input
 
     output:
     path "${fasta_name}.output.tree", emit: output_tree
@@ -677,6 +1001,7 @@ process build {
 
     script:
     fasta_name = clean_aln_file.baseName.replace(".clean.alg", "")
+    //println "Building tree for: ${clean_aln_file}, detected type: ${aln_type}"
     if (params.tree_builder == "none") {
         // If no tree builder is specified, just copy the input file to the output
         """
@@ -692,7 +1017,7 @@ process build {
                 break
             case "phyml":
                 buildCmd = "phyml"
-                buildOptions = getPhymlOptions(buildConfig)
+                buildOptions = getPhymlOptions(buildConfig, aln_type)
                 break
             case "raxml":
                 buildCmd = "raxmlHPC"
@@ -713,7 +1038,7 @@ process build {
             ${buildCmd} ${buildOptions} $clean_aln_file > ${fasta_name}.output.tree 2> build.err
         elif [ "${params.tree_builder}" == "phyml" ]; then
             # Convert the input FASTA file to PHYLIP format using the updated script
-            python ${bin}/FastaToPhylip.py -i $clean_aln_file -o ${fasta_name}.clean.alg.phylip && \
+            python ${bin}/FastaToPhylip.py fasta2phylip -i $clean_aln_file -o ${fasta_name}.clean.alg.phylip && \
             # Run PhyML on the converted PHYLIP file
             ${buildCmd} ${buildOptions} -i ${fasta_name}.clean.alg.phylip 2> build.err && \
             # Move the output tree file to the desired output location
@@ -863,7 +1188,7 @@ workflow {
     def trimConfig = params.trimmer != "none" ? jsonConfig.trimmer[params.trimmer] : [:]
     def buildConfig = params.tree_builder != "none" ? jsonConfig.tree_builder[params.tree_builder] : [:]
     println "Align Config: ${alignConfig}"
-    println "${params.trimmer}"
+    // println "${params.trimmer}"
     println "Trim Config: ${trimConfig}"
     println "Build Config: ${buildConfig}"
     // Output the used configurations to a JSON file

@@ -10,6 +10,12 @@ import json
 import src.mafft as mafft
 import src.muscle as muscle
 import src.clustalo as clustalo
+import src.tcoffee as tcoffee
+import src.famsa as famsa
+import src.trimal as trimal
+import src.trim_alg as trim_alg
+import src.clipkit as clipkit
+import src.fasttree as fasttree
 
 # Predefined workflows
 PREDEFINED_WORKFLOWS = {
@@ -20,7 +26,7 @@ PREDEFINED_WORKFLOWS = {
     # Add more predefined workflows as needed
 }
 
-ALIGNERS = ["mafft", "muscle", "t_coffee", "clustalo", "famsa"]
+ALIGNERS = ["mafft", "muscle", "tcoffee", "clustalo", "famsa"]
 TRIMMERS = ["trimal", "clipkit", "trim_alg_v2"]
 TREE_BUILDERS = ["fasttree", "phyml", "raxml", "iqtree"]
 
@@ -114,12 +120,26 @@ def convert_cfg_to_json(cfg_file, aligner, trimmer, tree_builder):
                             config["aligner"]["muscle"] = muscle.parse_muscle_options(section_data)
                         elif section_data.get("_app") == "clustalo":
                             config["aligner"]["clustalo"] = clustalo.parse_clustalo_options(section_data)
+                        elif section_data.get("_app") == "tcoffee":
+                            config["aligner"]["tcoffee"] = tcoffee.parse_tcoffee_options(section_data)
+                        elif section_data.get("_app") == "famsa":
+                            config["aligner"]["famsa"] = famsa.parse_famsa_options(section_data)
                         else:
                             config["aligner"][section_data["_app"]] = section_data
                     elif current_section == trimmer:
-                        config["trimmer"][section_data["_app"]] = section_data
+                        if section_data.get("_app") == "trimal":
+                            config["trimmer"]["trimal"] = trimal.parse_trimal_options(section_data)
+                        elif section_data.get("_app") == "trim_alg_v2":
+                            config["trimmer"]["trim_alg_v2"] = trim_alg.parse_trimalg_options(section_data)
+                        elif section_data.get("_app") == "clipkit":
+                            config["trimmer"]["clipkit"] = clipkit.parse_clipkit_options(section_data)
+                        else:
+                            config["trimmer"][section_data["_app"]] = section_data
                     elif current_section == tree_builder:
-                        config["tree_builder"][section_data["_app"]] = section_data
+                        if section_data.get("_app") == "fasttree":
+                            config["tree_builder"]["fasttree"] = fasttree.parse_fasttree_options(section_data)
+                        else:
+                            config["tree_builder"][section_data["_app"]] = section_data
                 
                 # Start a new section
                 current_section = line[1:-1]  # Keep the full section name
@@ -150,13 +170,26 @@ def convert_cfg_to_json(cfg_file, aligner, trimmer, tree_builder):
                         config["aligner"]["muscle"] = muscle.parse_muscle_options(section_data)
                 elif section_data.get("_app") == "clustalo":
                     config["aligner"]["clustalo"] = parse_clustalo_options(section_data)
+                elif section_data.get("_app") == "tcoffee":
+                            config["aligner"]["tcoffee"] = tcoffee.parse_tcoffee_options(section_data)
+                elif section_data.get("_app") == "famsa":
+                            config["aligner"]["famsa"] = famsa.parse_famsa_options(section_data)
                 else:
                     config["aligner"][section_data["_app"]] = section_data
             elif current_section == trimmer:
-                config["trimmer"][section_data["_app"]] = section_data
+                if section_data.get("_app") == "trimal":
+                    config["trimmer"]["trimal"] = trimal.parse_trimal_options(section_data)
+                elif section_data.get("_app") == "trim_alg_v2":
+                    config["trimmer"]["trim_alg_v2"] = trim_alg.parse_trimalg_options(section_data)
+                elif section_data.get("_app") == "clipkit":
+                    config["trimmer"]["clipkit"] = clipkit.parse_clipkit_options(section_data)
+                else:
+                    config["trimmer"][section_data["_app"]] = section_data
             elif current_section == tree_builder:
-                config["tree_builder"][section_data["_app"]] = section_data
-
+                if section_data.get("_app") == "fasttree":
+                    config["tree_builder"]["fasttree"] = fasttree.parse_fasttree_options(section_data)
+                else:
+                    config["tree_builder"][section_data["_app"]] = section_data
     return config
 
 def run_nextflow(mode, input_file, output_dir, aligner, trimmer, tree_builder, memory, threads, log_file, work_dir, workflow_config=None, resume=False, script="ete_build_dsl2.nf"):
@@ -167,7 +200,7 @@ def run_nextflow(mode, input_file, output_dir, aligner, trimmer, tree_builder, m
         with open(json_file, 'w') as out_json:
             json.dump(cfg_json, out_json, indent=4)
         workflow_config = json_file
-
+    
     # Split aligner and tree_builder by underscore and take the first part
     aligner = aligner.split("_")[0]
     tree_builder = tree_builder.split("_")[0]
@@ -198,7 +231,7 @@ def run_nextflow(mode, input_file, output_dir, aligner, trimmer, tree_builder, m
     
     if resume:
         cmd.append("-resume")
-    print(" ".join(cmd))
+    
     process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
     while True:
         output = process.stdout.readline()
