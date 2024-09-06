@@ -492,73 +492,6 @@ def getFastTreeOptions(buildConfig) {
 }
 
 // Function to get PhyML options
-// def getPhymlOptions(buildConfig) {
-//     def options = ""
-//     options += buildConfig.model ? "-m ${buildConfig.model} " : ""
-//     //options += buildConfig.datatype ? "-d ${buildConfig.datatype} " : ""
-//     options += buildConfig.no_memory_check ? "--no_memory_check " : ""
-
-//     if (buildConfig.branch_support) {
-//         switch(buildConfig.branch_support) {
-//             case "bootstrap":
-//                 options += "-b ${buildConfig.bootstrap_rep ?: 100} "
-//                 if (buildConfig.bootstrap == "tbe") {
-//                     options += "--tbe "
-//                 }
-//                 break
-//             case "None":
-//                 options += "-b 0 "
-//                 break
-//             case "aLRT":
-//                 options += "-b -1 "
-//                 break
-//             case "Chi2":
-//                 options += "-b -2 "
-//                 break
-//             case "SH":
-//                 options += "-b -4 "
-//                 break
-//             case "Bayes":
-//                 options += "-b -5 "
-//                 break
-//             default:
-//                 throw new Exception("Invalid branch support type: ${buildConfig.branch_support}")
-//         }
-//     }
-
-//     if (buildConfig.equilibrium_freq) {
-//         switch(buildConfig.equilibrium_freq) {
-//             case "empirical":
-//                 options += "-f e "
-//                 break
-//             case "ml":
-//                 options += "-f m "
-//                 break
-//             default:
-//                 throw new Exception("Invalid equilibrium frequency: ${buildConfig.equilibrium_freq}")
-//         }
-//     }
-
-//     if (buildConfig.prop_invar) {
-//         if (buildConfig.prop_invar == "e") {
-//             options += "--pinv e "
-//         } else {
-//             options += "--pinv ${buildConfig.prop_invar} "
-//         }
-//     }
-
-//     if (buildConfig.gamma) {
-//         if (buildConfig.gamma == "e") {
-//             options += "--gamma e "
-//         } else {
-//             options += "--gamma ${buildConfig.gamma} "
-//         }
-//     }
-
-//     return options
-// }
-
-// Function to get PhyML options
 def getPhymlOptions(buildConfig, aln_type) {
     def options = ""
     // check point for datatype
@@ -757,26 +690,8 @@ def filterUsedTreeBuilderConfig(buildConfig) {
     return usedTreeBuilderConfig
 }
 
-// def detectAlignmentType(alignmentFile) {
-//     def nucleotides = ['A', 'T', 'G', 'C', 'U', 'N']
-//     def aa_regex = ~/(?i)^[ACDEFGHIKLMNPQRSTVWYXBZ]+$/  // Regex for amino acids (IUPAC standard)
-//     println "Detecting sequence type for: ${alignmentFile}"
-//     def sequenceData = file(alignmentFile).text
-//     def lines = sequenceData.readLines().findAll { !it.startsWith(">") && !it.isEmpty() } // Remove header lines
-    
-//     def first_sequence = lines.join().toUpperCase()
-    
-//     if (nucleotides.any { first_sequence.contains(it) }) {
-//         return "nt"
-//     } else if (first_sequence.matches(aa_regex)) {
-//         return "aa"
-//     } else {
-//         throw new Exception("Cannot determine sequence type for: ${alignmentFile}")
-//     }
-// }
-
 def detectAlignmentType(alignmentFile) {
-    // Open the file and read a sample of sequences
+    // Read the alignment file as text
     def lines = file(alignmentFile).readLines()
 
     // Concatenate all sequence lines (ignoring lines that look like headers or gaps)
@@ -787,18 +702,16 @@ def detectAlignmentType(alignmentFile) {
     // Regular expressions for nucleotides and amino acids (case-insensitive with (?i))
     def nt_regex = /(?i)^[ACGTURYKMSWBDHVN]+$/    // IUPAC codes for nucleotides
     def aa_regex = /(?i)^[ACDEFGHIKLMNPQRSTVWYBXZ]+$/ // IUPAC codes for amino acids
-
+    
     // Check if the sequence data matches nucleotide or amino acid patterns
-    if (nt_regex.matcher(sequenceData).matches()) {
+    if (sequenceData ==~ nt_regex) {
         return "nt"
-    } else if (aa_regex.matcher(sequenceData).matches()) {
+    } else if (sequenceData ==~ aa_regex) {
         return "aa"
     } else {
         throw new Exception("Cannot determine alignment type. Neither nucleotide nor amino acid patterns match.")
     }
 }
-
-
 
 
 process parseFasta {
@@ -991,7 +904,6 @@ process build {
     
     input:
     path clean_aln_file 
-    //val aln_type  // Accept alignment type as input
 
     output:
     path "${fasta_name}.output.tree", emit: output_tree
@@ -1000,8 +912,14 @@ process build {
     stdout emit: build_stdout
 
     script:
-    fasta_name = clean_aln_file.baseName.replace(".clean.alg", "")
+    def aln_name = clean_aln_file.baseName.replace(".clean.alg", "")
+    // Construct the correct file path for alignment
+    def aln_file_path = file("${params.output}/${aln_name}-${params.aligner}-${params.trimmer}-${params.tree_builder}/${clean_aln_file.name}")
+    def aln_type = detectAlignmentType(aln_file_path)
+
     //println "Building tree for: ${clean_aln_file}, detected type: ${aln_type}"
+    
+    fasta_name = clean_aln_file.baseName.replace(".clean.alg", "") // for the bash script
     if (params.tree_builder == "none") {
         // If no tree builder is specified, just copy the input file to the output
         """
@@ -1187,14 +1105,15 @@ workflow {
     def alignConfig = params.aligner != "none" ? jsonConfig.aligner[params.aligner] : [:]
     def trimConfig = params.trimmer != "none" ? jsonConfig.trimmer[params.trimmer] : [:]
     def buildConfig = params.tree_builder != "none" ? jsonConfig.tree_builder[params.tree_builder] : [:]
-    println "Align Config: ${alignConfig}"
+    // println "Align Config: ${alignConfig}"
     // println "${params.trimmer}"
-    println "Trim Config: ${trimConfig}"
-    println "Build Config: ${buildConfig}"
+    // println "Trim Config: ${trimConfig}"
+    // println "Build Config: ${buildConfig}"
     // Output the used configurations to a JSON file
 
     outputUsedConfig(alignConfig, trimConfig, buildConfig)
     outputUsedConfigAsCfg(alignConfig, trimConfig, buildConfig)
+
     align(parsed_files)
     trim(align.out.aln_seqs)
     build(trim.out.clean_aln_seqs)

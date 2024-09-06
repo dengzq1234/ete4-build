@@ -16,6 +16,8 @@ import src.trimal as trimal
 import src.trim_alg as trim_alg
 import src.clipkit as clipkit
 import src.fasttree as fasttree
+import src.phyml as phyml
+
 
 # Predefined workflows
 PREDEFINED_WORKFLOWS = {
@@ -138,6 +140,8 @@ def convert_cfg_to_json(cfg_file, aligner, trimmer, tree_builder):
                     elif current_section == tree_builder:
                         if section_data.get("_app") == "fasttree":
                             config["tree_builder"]["fasttree"] = fasttree.parse_fasttree_options(section_data)
+                        elif section_data.get("_app") == "phyml":
+                            config["tree_builder"]["phyml"] = phyml.parse_phyml_options(section_data)
                         else:
                             config["tree_builder"][section_data["_app"]] = section_data
                 
@@ -188,6 +192,8 @@ def convert_cfg_to_json(cfg_file, aligner, trimmer, tree_builder):
             elif current_section == tree_builder:
                 if section_data.get("_app") == "fasttree":
                     config["tree_builder"]["fasttree"] = fasttree.parse_fasttree_options(section_data)
+                elif section_data.get("_app") == "phyml":
+                    config["tree_builder"]["phyml"] = phyml.parse_phyml_options(section_data)
                 else:
                     config["tree_builder"][section_data["_app"]] = section_data
     return config
