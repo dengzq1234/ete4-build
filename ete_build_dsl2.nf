@@ -76,16 +76,16 @@ def defaultConfig = [
             name: "raxmlHPC",
             algorithm: "d",
             r_seed: 31416,
-            model: "PROTGAMMAJTT"
+            aa_model: "PROTGAMMAJTT",
+            nt_model: "GTRGAMMA",
+            bootstrap: 100,
         ],
         iqtree: [
             name: "iqtree",
-            st: "AA",
             alrt: 1000,
             seed: 31416,
-            mode: "TESTONLY",
-            bootstrap_rep: 1000,
-            bootstrap: "fbp"
+            model: "TESTONLY",
+            tbe: false,  // Disable TBE
         ]
     ]
 ]
@@ -645,25 +645,67 @@ def getPhymlOptions(buildConfig, aln_type) {
 
 
 // Function to get RAxML options
-def getRaxmlOptions(buildConfig) {
+// def getRaxmlOptions(buildConfig) {
+//     def options = ""
+//     options += buildConfig.algorithm ? "-f ${buildConfig.algorithm} " : ""
+//     options += buildConfig.r_seed ? "-p ${buildConfig.r_seed} " : ""
+//     options += buildConfig.model ? "-m ${buildConfig.model} " : ""
+//     options += buildConfig.bootstrap ? "-b ${buildConfig.bootstrap} " : ""
+//     return options
+// }
+
+def getRaxmlOptions(buildConfig, aln_type){
     def options = ""
-    options += buildConfig.algorithm ? "-f ${buildConfig.algorithm} " : ""
-    options += buildConfig.r_seed ? "-p ${buildConfig.r_seed} " : ""
-    options += buildConfig.model ? "-m ${buildConfig.model} " : ""
-    options += buildConfig.bootstrap ? "-b ${buildConfig.bootstrap} " : ""
+    if (buildConfig.algorithm) {
+        options += "-f ${buildConfig.algorithm} "
+    }
+    
+    if (aln_type == 'aa'){
+        if (buildConfig.aa_model) {
+            options += "-m ${buildConfig.aa_model} "
+        }
+    } else {
+        if (buildConfig.nt_model) {
+            options += "-m ${buildConfig.nt_model} "
+        }
+    }
+    println "RAxML Options: ${aln_type}, ${buildConfig.nt_model} "
+    if (buildConfig.r_seed) {
+        options += "-p ${buildConfig.r_seed} "
+    }
+
+    if (buildConfig.bootstrap) {
+        options += "-N ${buildConfig.bootstrap} "
+    }
     return options
 }
 
 // Function to get IQ-TREE options
 def getIqtreeOptions(buildConfig) {
     def options = ""
-    options += buildConfig.st ? "-st ${buildConfig.st} " : ""
-    options += buildConfig.alrt ? "-alrt ${buildConfig.alrt} " : ""
-    options += buildConfig.seed ? "-seed ${buildConfig.seed} " : ""
-    options += buildConfig.mode ? "-m ${buildConfig.mode} " : ""
-    options += buildConfig.bootstrap_rep ? "-B ${buildConfig.bootstrap_rep} " : ""
+    
+    if (buildConfig.alrt) {
+        options += "-alrt ${buildConfig.alrt} "
+    }
+
+    if (buildConfig.seed) {
+        options += "-seed ${buildConfig.seed} "
+    }
+
+    if (buildConfig.mode) {
+        options += "-m ${buildConfig.mode} "
+    }
+    
+    if (buildConfig.st) {
+        options += "-st ${buildConfig.st} "
+    }
+
+    if (buildConfig.ufboot) {
+        options += "-B ${buildConfig.ufboot} "
+    }
+
     // println "IQ-TREE Options: ${buildConfig.bootstrap_rep}"
-    if (buildConfig.bootstrap == "tbe") {
+    if (buildConfig.tbe) {
         options += "--tbe "
     }
     return options
@@ -939,7 +981,7 @@ process build {
                 break
             case "raxml":
                 buildCmd = "raxmlHPC"
-                buildOptions = getRaxmlOptions(buildConfig)
+                buildOptions = getRaxmlOptions(buildConfig, aln_type)
                 break
             case "iqtree":
                 buildCmd = "iqtree2"

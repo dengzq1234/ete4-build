@@ -17,7 +17,8 @@ import src.trim_alg as trim_alg
 import src.clipkit as clipkit
 import src.fasttree as fasttree
 import src.phyml as phyml
-
+import src.raxml as raxml
+import src.iqtree as iqtree
 
 # Predefined workflows
 PREDEFINED_WORKFLOWS = {
@@ -142,6 +143,10 @@ def convert_cfg_to_json(cfg_file, aligner, trimmer, tree_builder):
                             config["tree_builder"]["fasttree"] = fasttree.parse_fasttree_options(section_data)
                         elif section_data.get("_app") == "phyml":
                             config["tree_builder"]["phyml"] = phyml.parse_phyml_options(section_data)
+                        elif section_data.get("_app") == "raxml":
+                            config["tree_builder"]["raxml"] = raxml.parse_raxml_options(section_data)
+                        elif config["tree_builder"].get("_app") == "iqtree":
+                            config["tree_builder"]["iqtree"] = iqtree.parse_iqtree_options(section_data)
                         else:
                             config["tree_builder"][section_data["_app"]] = section_data
                 
@@ -194,6 +199,10 @@ def convert_cfg_to_json(cfg_file, aligner, trimmer, tree_builder):
                     config["tree_builder"]["fasttree"] = fasttree.parse_fasttree_options(section_data)
                 elif section_data.get("_app") == "phyml":
                     config["tree_builder"]["phyml"] = phyml.parse_phyml_options(section_data)
+                elif section_data.get("_app") == "raxml":
+                    config["tree_builder"]["raxml"] = raxml.parse_raxml_options(section_data)    
+                elif config["tree_builder"].get("_app") == "iqtree":
+                    config["tree_builder"]["iqtree"] = iqtree.parse_iqtree_options(section_data)
                 else:
                     config["tree_builder"][section_data["_app"]] = section_data
     return config
