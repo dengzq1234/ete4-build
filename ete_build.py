@@ -207,7 +207,7 @@ def convert_cfg_to_json(cfg_file, aligner, trimmer, tree_builder):
                     config["tree_builder"][section_data["_app"]] = section_data
     return config
 
-def run_nextflow(mode, input_file, output_dir, aligner, trimmer, tree_builder, memory, threads, log_file, work_dir, workflow_config=None, resume=False, script="ete_build_dsl2.nf"):
+def run_nextflow(mode, input_file, output_dir, aligner, trimmer, tree_builder, memory, threads, log_file, work_dir, supermatrix=False, target_species=None, workflow_config=None, resume=False, script="ete_build_dsl2.nf"):
     if workflow_config and workflow_config.endswith(".cfg"):
         cfg_json = convert_cfg_to_json(workflow_config, aligner, trimmer, tree_builder)
         json_file = workflow_config.replace(".cfg", ".json")
@@ -244,8 +244,14 @@ def run_nextflow(mode, input_file, output_dir, aligner, trimmer, tree_builder, m
     if workflow_config:
         cmd.extend(["--customConfig", workflow_config])
     
+    if supermatrix and target_species:
+        cmd.append("--supermatrix_mode")
+        cmd.extend(["--target_species", target_species])
+
     if resume:
         cmd.append("-resume")
+    
+    print(cmd)
     
     process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
     while True:
@@ -298,7 +304,7 @@ def main():
     # Generate the Nextflow config AFTER setting the workflow-specific parameters
     generate_nextflow_config(args)
 
-    run_nextflow(args.mode, args.input, args.output, args.aligner, args.trimmer, args.tree_builder, args.memory, args.cpus, args.log, args.work_dir, args.config, args.resume, args.script)
+    run_nextflow(args.mode, args.input, args.output, args.aligner, args.trimmer, args.tree_builder, args.memory, args.cpus, args.log, args.work_dir, args.supermatrix, args.target_species, args.config, args.resume, args.script)
 
 if __name__ == "__main__":
     main()
