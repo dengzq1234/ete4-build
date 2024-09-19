@@ -56,7 +56,7 @@ profiles {{
     slurm {{
         process {{
             executor = 'slurm'
-            queue = '{args.partition}'
+            queue = '{args.slurm_partition}'
             time = '{args.time}'
             memory = '{args.memory}'
             cpus = {args.cpus}
