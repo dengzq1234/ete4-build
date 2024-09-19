@@ -22,10 +22,10 @@ import src.iqtree as iqtree
 
 # Predefined workflows
 PREDEFINED_WORKFLOWS = {
-    "workflow1": {"aligner": "mafft", "trimmer": "trimal", "tree_builder": "fasttree"},
-    "workflow2": {"aligner": "famsa", "trimmer": "trimal", "tree_builder": "fasttree"},
-    "workflow3": {"aligner": "famsa", "trimmer": "trim_alg_v2", "tree_builder": "fasttree"},
-    "ana-workflow": {"aligner": "hybrid", "trimmer": "trimal", "tree_builder": "fasttree"},
+    "workflow1": {"aligner": "mafft_default", "trimmer": "trimal_default", "tree_builder": "fasttree_default"},
+    "workflow2": {"aligner": "famsa_default", "trimmer": "trimal_default", "tree_builder": "fasttree_default"},
+    "workflow3": {"aligner": "famsa_default", "trimmer": "trim_alg_v2_default", "tree_builder": "fasttree_default"},
+    #"ana-workflow": {"aligner": "hybrid", "trimmer": "trimal", "tree_builder": "fasttree"},
     # Add more predefined workflows as needed
 }
 
@@ -264,13 +264,15 @@ def run_nextflow(mode, input_file, output_dir, aligner, trimmer, tree_builder, m
 def main():
     parser = argparse.ArgumentParser(description="Run Nextflow workflow.")
     parser.add_argument("--mode", default='local', choices=["local", "slurm"], required=True, help="Execution mode: local or slurm.")
-    parser.add_argument("--partition", help="SLURM partition name (required if mode is slurm).")
+    parser.add_argument("--slurm-partition", help="SLURM partition name (required if mode is slurm).")
     parser.add_argument("--time", default="1h", help="Time limit for SLURM jobs (only if mode is slurm).")
     parser.add_argument("--memory", default="4GB", help="Memory allocation for SLURM jobs (only if mode is slurm).")
     parser.add_argument("--cpus", type=int, default=4, help="Number of CPUs for SLURM jobs (only if mode is slurm).")
     parser.add_argument("--script", default="ete_build_dsl2.nf", help="Path to the Nextflow script to run.")
     parser.add_argument("--input", required=True, help="Input fasta file or directory.")
     parser.add_argument("--output", required=True, help="Output directory.")
+    parser.add_argument("--supermatrix", action="store_true", help="Enable supermatrix mode to concatenate individual gene alignments before building the tree.")
+    parser.add_argument("--target-species", help="Path to the target species file for supermatrix mode.")
     parser.add_argument("--aligner", default="mafft", help="Alignment tool.")
     parser.add_argument("--trimmer", default="none", help="Trimming tool.")
     parser.add_argument("--tree_builder", default="fasttree", help="Tree building tool.")
@@ -283,8 +285,8 @@ def main():
     args = parser.parse_args()
     
     # Validate SLURM-specific arguments
-    if args.mode == "slurm" and not args.partition:
-        parser.error("--partition is required when mode is slurm.")
+    if args.mode == "slurm" and not args.slurm_partition:
+        parser.error("--slurm-partition is required when mode is slurm.")
     
     # If a predefined workflow is selected, override the tool choices
     if args.workflow:
