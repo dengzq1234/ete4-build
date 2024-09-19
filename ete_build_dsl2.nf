@@ -10,7 +10,8 @@ params.tree_builder = "none" // "fasttree"
 params.memory = '4GB'
 params.time = '1h'
 params.customConfig = null
-
+params.supermatrix_mode = false // Whether to build a supermatrix
+params.target_species = null // File path to target species list for supermatrix concatenation
 bin = "$baseDir/bin"
 
 // Default configuration
@@ -936,6 +937,37 @@ process trim {
     }
 }
 
+process concatSupermatrix {
+    cpus params.thread
+    memory params.memory
+    time params.time
+    errorStrategy 'retry'
+    maxRetries 2
+    publishDir path: { "${params.output}/supermatrix-${params.aligner}-${params.trimmer}-${params.tree_builder}" }, mode: 'copy'
+
+    input:
+    //path clean_aln_files 
+    path clean_aln_files // Collect all files into one input
+    
+    output:
+    path "supermatrix.clean.alg.faa", emit: supermatrix_output
+    path "*.*", emit: concat_files
+
+    script:
+    if (!params.target_species) {
+        throw new Exception("Target species file is required when supermatrix mode is enabled.")
+    }
+    def targetSpeciesFile = file(params.target_species).toAbsolutePath().toString()
+
+    // Debug: Print the collected alignment files for verification
+    println "Collected alignment files for supermatrix concatenation:"
+    clean_aln_files.each { println it.toString() }
+
+    """
+    python ${bin}/concat_aln.py -a ${clean_aln_files.join(" ")} --taxa ${targetSpeciesFile} -o supermatrix.clean.alg.faa -p partition_file.txt
+    """
+}
+
 process build {
     cpus params.thread
     memory params.memory
@@ -954,11 +986,15 @@ process build {
     stdout emit: build_stdout
 
     script:
+    
     def aln_name = clean_aln_file.baseName.replace(".clean.alg", "")
+    
     // Construct the correct file path for alignment
     def aln_file_path = file("${params.output}/${aln_name}-${params.aligner}-${params.trimmer}-${params.tree_builder}/${clean_aln_file.name}")
+    
+    
     def aln_type = detectAlignmentType(aln_file_path)
-
+    
     //println "Building tree for: ${clean_aln_file}, detected type: ${aln_type}"
     
     fasta_name = clean_aln_file.baseName.replace(".clean.alg", "") // for the bash script
@@ -1147,18 +1183,27 @@ workflow {
     def alignConfig = params.aligner != "none" ? jsonConfig.aligner[params.aligner] : [:]
     def trimConfig = params.trimmer != "none" ? jsonConfig.trimmer[params.trimmer] : [:]
     def buildConfig = params.tree_builder != "none" ? jsonConfig.tree_builder[params.tree_builder] : [:]
-    // println "Align Config: ${alignConfig}"
-    // println "${params.trimmer}"
-    // println "Trim Config: ${trimConfig}"
-    // println "Build Config: ${buildConfig}"
-    // Output the used configurations to a JSON file
 
     outputUsedConfig(alignConfig, trimConfig, buildConfig)
     outputUsedConfigAsCfg(alignConfig, trimConfig, buildConfig)
 
+    // process to to either gene tree or speceis tree
     align(parsed_files)
     trim(align.out.aln_seqs)
-    build(trim.out.clean_aln_seqs)
+    
+    if (params.supermatrix_mode) {
+        // Collect all trimmed alignment files into a single set
+        def collected_trimmed_files = trim.out.clean_aln_seqs.collect()
+
+        // Pass the collected files to concatSupermatrix
+        concatSupermatrix(collected_trimmed_files)
+
+        // Use the resulting supermatrix output for tree building
+        build(concatSupermatrix.out.supermatrix_output)
+    } else {
+        // Build trees individually from each trimmed alignment
+        build(trim.out.clean_aln_seqs)
+    }
     
     align.out.align_stdout.view { it -> println("[align] ${it}") }
     trim.out.trim_stdout.view { it -> println("[trim] ${it}") }

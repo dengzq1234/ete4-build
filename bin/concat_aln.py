@@ -97,7 +97,7 @@ def main():
 
     parser.add_argument('-a', dest='alignment_files', help='A list of alignment files in FASTA format (supports wildcards).', nargs="+", required=True)
     parser.add_argument('--spname-delimiter', dest='separator', help='Separator for species code in sequence names.', default='|')
-    parser.add_argument('--spname-field', dest='field', help='Field number for species code in sequence names.', default='1')
+    parser.add_argument('--spname-field', dest='field', help='Field number for species code in sequence names.', default='0')
     parser.add_argument('--taxa', dest='target_taxa', help='A file containing a list of expected taxa.', required=True)
     parser.add_argument('-o', dest='output_file', help='Output file to store the supermatrix.', required=True)
     parser.add_argument('-p', dest='partition_file', help='(Optional) Output file to store the partition information.', required=False)
