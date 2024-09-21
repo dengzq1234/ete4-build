@@ -87,6 +87,23 @@ def defaultConfig = [
             seed: 31416,
             model: "TESTONLY",
             tbe: false,  // Disable TBE
+        ],
+        mrbayes: [
+            name: "mb",
+            ngen: 100000,           // Number of generations
+            nchains: 4,             // Number of chains
+            nruns: 2,               // Number of runs
+            nst: 1,                // Substitution model for dna
+            rates: "equal",      // Rates model for dna Equal/Gamma/LNorm/Propinv/Invgamma/Adgamma/Kmixture 
+            aamodelpr: "fixed(wag)", // Amino acid model
+            diagnfreq: 5000,        // Frequency of diagnosing
+            samplefreq: 500,        // Frequency of sampling
+            printfreq: 1000,         // Frequency of printing
+            burninfrac: 0.25,       // Burn-in fraction
+            append: "no",           // Append to last checkpoint
+            stoprule: "no",
+            seed: 1726956368,                // Seed
+            swapseed: 1726956368             // Swap seed
         ]
     ]
 ]
@@ -994,6 +1011,7 @@ process build {
     
     
     def aln_type = detectAlignmentType(aln_file_path)
+    def workDir = task.workDir.toString() // Get the current working directory for the task
     
     //println "Building tree for: ${clean_aln_file}, detected type: ${aln_type}"
     
@@ -1023,6 +1041,9 @@ process build {
                 buildCmd = "iqtree2"
                 buildOptions = getIqtreeOptions(buildConfig)
                 break
+            case "mrbayes":
+                buildCmd = "mb"
+                break
             default:
                 throw new Exception("Invalid tree builder: ${params.tree_builder}")
         }
@@ -1045,6 +1066,28 @@ process build {
         elif [ "${params.tree_builder}" == "iqtree" ]; then
             ${buildCmd} ${buildOptions} -s $clean_aln_file -T ${params.thread} 2> build.err
             cp ${fasta_name}.clean.alg.faa.treefile ${fasta_name}.output.tree
+        elif [ "${params.tree_builder}" == "mrbayes" ]; then
+            # Create the commands.txt file for MrBayes
+            python ${bin}/FastaToPhylip.py fasta2nexus -i $clean_aln_file -o ${fasta_name}.clean.alg.nex 
+            # Generate MrBayes commands.txt using the Python script
+            python ${bin}/mrbayes_command.py \
+                --fasta_name ${fasta_name} \
+                --outfile commands.txt \
+                --aln_type ${aln_type} \
+                --ngen ${buildConfig.ngen} \
+                --nchains ${buildConfig.nchains} \
+                --nruns ${buildConfig.nruns} \
+                --samplefreq ${buildConfig.samplefreq} \
+                --printfreq ${buildConfig.printfreq} \
+                --burninfrac ${buildConfig.burninfrac} \
+                --diagnfreq ${buildConfig.diagnfreq} \
+                --append ${buildConfig.append} \
+                --seed ${buildConfig.seed} \
+                --swapseed ${buildConfig.swapseed}
+
+            # Run MrBayes using the generated commands.txt
+            ${buildCmd} < commands.txt
+            cp ${fasta_name}.clean.alg.nex.tre ${fasta_name}.output.tree  
         fi
         end_time=\$(date +%s)
         echo "Tree building $fasta_name took \$((end_time - start_time)) seconds."

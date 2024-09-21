@@ -251,8 +251,6 @@ def run_nextflow(mode, input_file, output_dir, aligner, trimmer, tree_builder, m
     if resume:
         cmd.append("-resume")
     
-    print(cmd)
-    
     process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
     while True:
         output = process.stdout.readline()
