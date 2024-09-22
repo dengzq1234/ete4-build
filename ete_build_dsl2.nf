@@ -12,6 +12,7 @@ params.time = '1h'
 params.customConfig = null
 params.supermatrix_mode = false // Whether to build a supermatrix
 params.target_species = null // File path to target species list for supermatrix concatenation
+params.astral_mode = false // Whether to run ASTRAL for coalescent species tree inference
 bin = "$baseDir/bin"
 
 // Default configuration
@@ -88,10 +89,9 @@ def defaultConfig = [
             model: "TESTONLY",
             tbe: false,  // Disable TBE
         ],
-        mrbayes:
-            [
-                name: "mb",
-            ]
+        mrbayes:[
+            name: "mb",
+        ],
         // mrbayes: [
         //     name: "mb",
         //     ngen: 100000,           // Number of generations
@@ -109,6 +109,11 @@ def defaultConfig = [
         //     seed: 1726956368,                // Seed
         //     swapseed: 1726956368             // Swap seed
         // ]
+        astral: [
+            name: "astral",
+            //-a: "species_map.txt",  // Path to the species mapping file, if needed
+        ]
+
     ]
 ]
 
@@ -1099,6 +1104,35 @@ process build {
     }
 }
 
+process runAstral {
+    cpus params.thread
+    memory params.memory
+    time params.time
+    errorStrategy 'retry'
+    maxRetries 2
+    publishDir path: { "${params.output}/astral-${params.aligner}-${params.trimmer}-${params.tree_builder}" }, mode: 'copy'
+
+    input:
+    path collected_tree_files // Collect all gene tree files from the build process
+    //path mapping_file optional true // Optional mapping file for species mapping
+
+    output:
+    path "species_tree.tre", emit: output_tree
+    path "gene_trees.tre", emit: gene_trees
+    path "astral.log", emit: astral_log
+
+    script:
+    // Define the filename to collect gene trees
+    collected_tree_files.each { println it.toString() }
+    // Concatenate all collected gene tree files into a single file for ASTRAL input
+    """
+    echo "Collecting gene trees into ${collected_tree_files.join(" ")} "gene_trees.tre""
+    python ${bin}/gene2sp_tree.py ${collected_tree_files.join(" ")} > gene_trees.tre
+    astral -i gene_trees.tre -o species_tree.tre > astral.log 2>&1 
+    """
+}
+
+
 process listInputFiles {
     input:
     path fasta_file
@@ -1252,6 +1286,12 @@ workflow {
         build(trim.out.clean_aln_seqs)
     }
     
+    // Run ASTRAL if the coalescent mode is enabled
+    if (params.astral_mode) {
+        def collected_tree_files = build.out.output_tree.collect()
+        runAstral(collected_tree_files)
+    }
+
     align.out.align_stdout.view { it -> println("[align] ${it}") }
     trim.out.trim_stdout.view { it -> println("[trim] ${it}") }
     build.out.build_stdout.view { it -> println("[build] ${it}") }
