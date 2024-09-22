@@ -3,7 +3,7 @@ import groovy.json.JsonOutput
 
 params.input = "$baseDir/data/"
 params.output = "$baseDir/result"
-params.thread = 1
+params.thread = 4
 params.aligner = "none" // "mafft"
 params.trimmer = "none" // "trimal"
 params.tree_builder = "none" // "fasttree"
@@ -88,23 +88,27 @@ def defaultConfig = [
             model: "TESTONLY",
             tbe: false,  // Disable TBE
         ],
-        mrbayes: [
-            name: "mb",
-            ngen: 100000,           // Number of generations
-            nchains: 4,             // Number of chains
-            nruns: 2,               // Number of runs
-            nst: 1,                // Substitution model for dna
-            rates: "equal",      // Rates model for dna Equal/Gamma/LNorm/Propinv/Invgamma/Adgamma/Kmixture 
-            aamodelpr: "fixed(wag)", // Amino acid model
-            diagnfreq: 5000,        // Frequency of diagnosing
-            samplefreq: 500,        // Frequency of sampling
-            printfreq: 1000,         // Frequency of printing
-            burninfrac: 0.25,       // Burn-in fraction
-            append: "no",           // Append to last checkpoint
-            stoprule: "no",
-            seed: 1726956368,                // Seed
-            swapseed: 1726956368             // Swap seed
-        ]
+        mrbayes:
+            [
+                name: "mb",
+            ]
+        // mrbayes: [
+        //     name: "mb",
+        //     ngen: 100000,           // Number of generations
+        //     nchains: 4,             // Number of chains
+        //     nruns: 2,               // Number of runs
+        //     nst: 1,                // Substitution model for dna
+        //     rates: "equal",      // Rates model for dna Equal/Gamma/LNorm/Propinv/Invgamma/Adgamma/Kmixture 
+        //     aamodelpr: "fixed(wag)", // Amino acid model
+        //     diagnfreq: 5000,        // Frequency of diagnosing
+        //     samplefreq: 500,        // Frequency of sampling
+        //     printfreq: 1000,         // Frequency of printing
+        //     burninfrac: 0.25,       // Burn-in fraction
+        //     append: "no",           // Append to last checkpoint
+        //     stoprule: "no",
+        //     seed: 1726956368,                // Seed
+        //     swapseed: 1726956368             // Swap seed
+        // ]
     ]
 ]
 
@@ -1086,7 +1090,7 @@ process build {
                 --swapseed ${buildConfig.swapseed}
 
             # Run MrBayes using the generated commands.txt
-            ${buildCmd} < commands.txt
+            mpirun -np ${params.thread} ${buildCmd} < commands.txt
             cp ${fasta_name}.clean.alg.nex.tre ${fasta_name}.output.tree  
         fi
         end_time=\$(date +%s)

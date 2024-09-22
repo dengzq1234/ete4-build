@@ -19,6 +19,7 @@ import src.fasttree as fasttree
 import src.phyml as phyml
 import src.raxml as raxml
 import src.iqtree as iqtree
+import src.mrbayes as mrbayes
 
 # Predefined workflows
 PREDEFINED_WORKFLOWS = {
@@ -31,7 +32,7 @@ PREDEFINED_WORKFLOWS = {
 
 ALIGNERS = ["mafft", "muscle", "tcoffee", "clustalo", "famsa"]
 TRIMMERS = ["trimal", "clipkit", "trim_alg_v2"]
-TREE_BUILDERS = ["fasttree", "phyml", "raxml", "iqtree"]
+TREE_BUILDERS = ["fasttree", "phyml", "raxml", "iqtree", "mrbayes"]
 
 def generate_nextflow_config(args):
     """
@@ -147,6 +148,8 @@ def convert_cfg_to_json(cfg_file, aligner, trimmer, tree_builder):
                             config["tree_builder"]["raxml"] = raxml.parse_raxml_options(section_data)
                         elif config["tree_builder"].get("_app") == "iqtree":
                             config["tree_builder"]["iqtree"] = iqtree.parse_iqtree_options(section_data)
+                        elif config["tree_builder"].get("_app") == "mybayes":
+                            config["tree_builder"]["mybayes"] = mrbayes.parse_mrbayes_options(section_data)
                         else:
                             config["tree_builder"][section_data["_app"]] = section_data
                 
@@ -203,6 +206,8 @@ def convert_cfg_to_json(cfg_file, aligner, trimmer, tree_builder):
                     config["tree_builder"]["raxml"] = raxml.parse_raxml_options(section_data)    
                 elif config["tree_builder"].get("_app") == "iqtree":
                     config["tree_builder"]["iqtree"] = iqtree.parse_iqtree_options(section_data)
+                elif config["tree_builder"].get("_app") == "mybayes":
+                            config["tree_builder"]["mybayes"] = mrbayes.parse_mrbayes_options(section_data)
                 else:
                     config["tree_builder"][section_data["_app"]] = section_data
     return config

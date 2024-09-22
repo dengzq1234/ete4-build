@@ -1,24 +1,22 @@
 {
     "aligner": {
-        "clustalo": {
-            "name": "clustalo",
-            "dealign": false,
-            "full": false,
-            "full_iter": false,
-            "iterations": null,
-            "max_guidetree_iterations": null,
-            "max_hmm_iterations": null
+        "mafft": {
+            "name": "mafft",
+            "op": 1.53,
+            "ep": 0.123,
+            "maxiterate": 0,
+            "matrix": "",
+            "blosum_coefficient": 62,
+            "pam_coefficient": 80,
+            "auto": true,
+            "localpair": false,
+            "globalpair": false,
+            "genafpair": false,
+            "retree": 2,
+            "nofft": false,
+            "parttree": false
         }
     },
     "trimmer": {},
-    "tree_builder": {
-        "raxml": {
-            "name": "raxml",
-            "algorithm": "d",
-            "aa_model": "PROTGAMMAJTT",
-            "nt_model": "GTRGAMMA",
-            "r_seed": 31416,
-            "bootstrap": 0
-        }
-    }
+    "tree_builder": {}
 }
