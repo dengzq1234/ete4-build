@@ -1,5 +1,7 @@
 #!/usr/bin/env nextflow
 import groovy.json.JsonOutput
+import java.nio.file.Paths
+import java.nio.file.StandardCopyOption
 
 params.input = "$baseDir/data/"
 params.output = "$baseDir/result"
@@ -994,12 +996,25 @@ process concatSupermatrix {
     """
 }
 
+
+def waitForFile(file, maxRetries = 5, delay = 5000) {
+        def attempts = 0
+        while (!file.exists() && attempts < maxRetries) {
+            println "Waiting for file to exist: ${file.absolutePath} (Attempt ${attempts + 1})"
+            sleep(delay)
+            attempts++
+        }
+        return file.exists()
+    }
+
+
 process build {
     cpus params.thread
     memory params.memory
     time params.time
     errorStrategy 'retry'
     maxRetries 2
+    
     publishDir path: { "${params.output}/${fasta_name}-${params.aligner}-${params.trimmer}-${params.tree_builder}" }, mode: 'copy'
     
     input:
@@ -1012,18 +1027,52 @@ process build {
     stdout emit: build_stdout
 
     script:
-    
-    def aln_name = clean_aln_file.baseName.replace(".clean.alg", "")
+    //def aln_name = clean_aln_file.baseName.replace(".clean.alg", "")
     
     // Construct the correct file path for alignment
-    def aln_file_path = file("${params.output}/${aln_name}-${params.aligner}-${params.trimmer}-${params.tree_builder}/${clean_aln_file.name}")
+    //def aln_file_path = Paths.get(params.output, "${aln_name}-${params.aligner}-${params.trimmer}-${params.tree_builder}", clean_aln_file.name).toString()
+
+    // // Check if the file exists before proceeding
+    // println "Checking file existence: ${aln_file_path}"
+    // def fileExists = new File(aln_file_path).exists()
+
+    // if (fileExists) {
+    //     println "File exists: ${aln_file_path}"
+    // } else {
+    //     println "File does not exist: ${aln_file_path}"
+    //     // Optional: introduce a wait to handle timing issues if necessary
+    //     sleep(10000) // Wait for 5 seconds to allow potential delays in file writing
+    //     fileExists = new File(aln_file_path).exists()
+    //     if (!fileExists) {
+    //         throw new Exception("File not found after waiting: ${aln_file_path}")
+    //     } else {
+    //         println "File exists after waiting: ${aln_file_path}"
+    //     }
+    // }
+    // println "Building tree for file: ${aln_file_path}"
+    // Function to wait and check for file existence
     
-    
+    // Construct the correct file path for alignment
+    def aln_name = clean_aln_file.baseName.replace(".clean.alg", "")
+    def aln_file_path = Paths.get(params.output, "${aln_name}-${params.aligner}-${params.trimmer}-${params.tree_builder}", clean_aln_file.name).toFile()
+
+    // Initial check for file existence and readability
+    //println "Checking file existence and readability: ${aln_file_path.absolutePath}"
+    def fileExists = waitForFile(aln_file_path)
+    def fileReadable = aln_file_path.canRead()
+
+    if (!fileExists || !fileReadable) {
+        throw new Exception("File is either not found or not readable after retries: ${aln_file_path.absolutePath}")
+    }
+
+    //println "File is confirmed to exist and is readable: ${aln_file_path.absolutePath}"
+
     def aln_type = detectAlignmentType(aln_file_path)
     def workDir = task.workDir.toString() // Get the current working directory for the task
     
-    //println "Building tree for: ${clean_aln_file}, detected type: ${aln_type}"
+    println "Building tree for: ${clean_aln_file}, detected type: ${aln_type}"
     
+
     fasta_name = clean_aln_file.baseName.replace(".clean.alg", "") // for the bash script
     if (params.tree_builder == "none") {
         // If no tree builder is specified, just copy the input file to the output
@@ -1057,50 +1106,50 @@ process build {
                 throw new Exception("Invalid tree builder: ${params.tree_builder}")
         }
 
-        """
-        start_time=\$(date +%s)
-        echo "run ${buildCmd} with options: $buildOptions"
-        if [ "${params.tree_builder}" == "fasttree" ]; then
-            ${buildCmd} ${buildOptions} $clean_aln_file > ${fasta_name}.output.tree 2> build.err
-        elif [ "${params.tree_builder}" == "phyml" ]; then
-            # Convert the input FASTA file to PHYLIP format using the updated script
-            python ${bin}/FastaToPhylip.py fasta2phylip -i $clean_aln_file -o ${fasta_name}.clean.alg.phylip && \
-            # Run PhyML on the converted PHYLIP file
-            ${buildCmd} ${buildOptions} -i ${fasta_name}.clean.alg.phylip 2> build.err && \
-            # Move the output tree file to the desired output location
-            mv ${fasta_name}.clean.alg.phylip_phyml_tree.txt ${fasta_name}.output.tree
-        elif [ "${params.tree_builder}" == "raxml" ]; then
-            ${buildCmd} ${buildOptions} -s $clean_aln_file -n ${fasta_name}.output.tree -T ${params.thread} 2> build.err
-            cp RAxML_bestTree.${fasta_name}.output.tree ${fasta_name}.output.tree
-        elif [ "${params.tree_builder}" == "iqtree" ]; then
-            ${buildCmd} ${buildOptions} -s $clean_aln_file -T ${params.thread} 2> build.err
-            cp ${fasta_name}.clean.alg.faa.treefile ${fasta_name}.output.tree
-        elif [ "${params.tree_builder}" == "mrbayes" ]; then
-            # Create the commands.txt file for MrBayes
-            python ${bin}/FastaToPhylip.py fasta2nexus -i $clean_aln_file -o ${fasta_name}.clean.alg.nex 
-            # Generate MrBayes commands.txt using the Python script
-            python ${bin}/mrbayes_command.py \
-                --fasta_name ${fasta_name} \
-                --outfile commands.txt \
-                --aln_type ${aln_type} \
-                --ngen ${buildConfig.ngen} \
-                --nchains ${buildConfig.nchains} \
-                --nruns ${buildConfig.nruns} \
-                --samplefreq ${buildConfig.samplefreq} \
-                --printfreq ${buildConfig.printfreq} \
-                --burninfrac ${buildConfig.burninfrac} \
-                --diagnfreq ${buildConfig.diagnfreq} \
-                --append ${buildConfig.append} \
-                --seed ${buildConfig.seed} \
-                --swapseed ${buildConfig.swapseed}
+    """
+    start_time=\$(date +%s)
+    echo "run ${buildCmd} with options: $buildOptions"
+    if [ "${params.tree_builder}" == "fasttree" ]; then
+        ${buildCmd} ${buildOptions} $clean_aln_file > ${fasta_name}.output.tree 2> build.err
+    elif [ "${params.tree_builder}" == "phyml" ]; then
+        # Convert the input FASTA file to PHYLIP format using the updated script
+        python ${bin}/FastaToPhylip.py fasta2phylip -i $clean_aln_file -o ${fasta_name}.clean.alg.phylip && \
+        # Run PhyML on the converted PHYLIP file
+        ${buildCmd} ${buildOptions} -i ${fasta_name}.clean.alg.phylip 2> build.err && \
+        # Move the output tree file to the desired output location
+        mv ${fasta_name}.clean.alg.phylip_phyml_tree.txt ${fasta_name}.output.tree
+    elif [ "${params.tree_builder}" == "raxml" ]; then
+        ${buildCmd} ${buildOptions} -s $clean_aln_file -n ${fasta_name}.output.tree -T ${params.thread} 2> build.err
+        cp RAxML_bestTree.${fasta_name}.output.tree ${fasta_name}.output.tree
+    elif [ "${params.tree_builder}" == "iqtree" ]; then
+        ${buildCmd} ${buildOptions} -s $clean_aln_file -T ${params.thread} 2> build.err
+        cp ${fasta_name}.clean.alg.faa.treefile ${fasta_name}.output.tree
+    elif [ "${params.tree_builder}" == "mrbayes" ]; then
+        # Create the commands.txt file for MrBayes
+        python ${bin}/FastaToPhylip.py fasta2nexus -i $clean_aln_file -o ${fasta_name}.clean.alg.nex 
+        # Generate MrBayes commands.txt using the Python script
+        python ${bin}/mrbayes_command.py \
+            --fasta_name ${fasta_name} \
+            --outfile commands.txt \
+            --aln_type ${aln_type} \
+            --ngen ${buildConfig.ngen} \
+            --nchains ${buildConfig.nchains} \
+            --nruns ${buildConfig.nruns} \
+            --samplefreq ${buildConfig.samplefreq} \
+            --printfreq ${buildConfig.printfreq} \
+            --burninfrac ${buildConfig.burninfrac} \
+            --diagnfreq ${buildConfig.diagnfreq} \
+            --append ${buildConfig.append} \
+            --seed ${buildConfig.seed} \
+            --swapseed ${buildConfig.swapseed}
 
-            # Run MrBayes using the generated commands.txt
-            mpirun -np ${params.thread} ${buildCmd} < commands.txt
-            cp ${fasta_name}.clean.alg.nex.tre ${fasta_name}.output.tree  
-        fi
-        end_time=\$(date +%s)
-        echo "Tree building $fasta_name took \$((end_time - start_time)) seconds."
-        """
+        # Run MrBayes using the generated commands.txt
+        mpirun -np ${params.thread} ${buildCmd} < commands.txt
+        cp ${fasta_name}.clean.alg.nex.tre ${fasta_name}.output.tree  
+    fi
+    end_time=\$(date +%s)
+    echo "Tree building $fasta_name took \$((end_time - start_time)) seconds."
+    """
     }
 }
 
@@ -1272,6 +1321,14 @@ workflow {
     align(parsed_files)
     trim(align.out.aln_seqs)
     
+    // Perform alignment and collect outputs
+    // def aligned_files = align(parsed_files).collect()
+    // aligned_files.view { it -> println("[align] ${it}") }
+
+    // Perform trimming and collect outputs once all alignments are completed
+    // def trimmed_files = trim(align.out.aln_seqs).collect()
+    // trimmed_files.view { it -> println("[trim] ${it}") }
+    
     if (params.supermatrix_mode) {
         // Collect all trimmed alignment files into a single set
         def collected_trimmed_files = trim.out.clean_aln_seqs.collect()
@@ -1284,6 +1341,7 @@ workflow {
     } else {
         // Build trees individually from each trimmed alignment
         build(trim.out.clean_aln_seqs)
+        //build(trimmed_files)
     }
     
     // Run ASTRAL if the coalescent mode is enabled
