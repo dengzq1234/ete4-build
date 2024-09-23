@@ -212,7 +212,7 @@ def convert_cfg_to_json(cfg_file, aligner, trimmer, tree_builder):
                     config["tree_builder"][section_data["_app"]] = section_data
     return config
 
-def run_nextflow(mode, input_file, output_dir, aligner, trimmer, tree_builder, memory, threads, log_file, work_dir, supermatrix=False, target_species=None, workflow_config=None, resume=False, script="ete_build_dsl2.nf"):
+def run_nextflow(mode, input_file, output_dir, aligner, trimmer, tree_builder, memory, threads, log_file, work_dir, supermatrix=False, target_species=None, coalescent=False, workflow_config=None, resume=False, script="ete_build_dsl2.nf"):
     if workflow_config and workflow_config.endswith(".cfg"):
         cfg_json = convert_cfg_to_json(workflow_config, aligner, trimmer, tree_builder)
         json_file = workflow_config.replace(".cfg", ".json")
@@ -253,9 +253,12 @@ def run_nextflow(mode, input_file, output_dir, aligner, trimmer, tree_builder, m
         cmd.append("--supermatrix_mode")
         cmd.extend(["--target_species", target_species])
 
+    if coalescent:
+        cmd.append("--coalescent_mode")
+
     if resume:
         cmd.append("-resume")
-    
+    print(cmd)
     process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
     while True:
         output = process.stdout.readline()
@@ -282,6 +285,7 @@ def main():
     parser.add_argument("--output", required=True, help="Output directory.")
     parser.add_argument("--supermatrix", action="store_true", help="Enable supermatrix mode to concatenate individual gene alignments before building the tree.")
     parser.add_argument("--target-species", help="Path to the target species file for supermatrix mode.")
+    parser.add_argument("--coalescent", action="store_true", help="Enable coalescent mode for supermatrix.")
     parser.add_argument("--aligner", default="mafft", help="Alignment tool.")
     parser.add_argument("--trimmer", default="none", help="Trimming tool.")
     parser.add_argument("--tree_builder", default="fasttree", help="Tree building tool.")
@@ -307,7 +311,7 @@ def main():
     # Generate the Nextflow config AFTER setting the workflow-specific parameters
     generate_nextflow_config(args)
 
-    run_nextflow(args.mode, args.input, args.output, args.aligner, args.trimmer, args.tree_builder, args.memory, args.cpus, args.log, args.work_dir, args.supermatrix, args.target_species, args.config, args.resume, args.script)
+    run_nextflow(args.mode, args.input, args.output, args.aligner, args.trimmer, args.tree_builder, args.memory, args.cpus, args.log, args.work_dir, args.supermatrix, args.target_species, args.coalescent, args.config, args.resume, args.script)
 
 if __name__ == "__main__":
     main()

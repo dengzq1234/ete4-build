@@ -12,7 +12,7 @@ params.time = '1h'
 params.customConfig = null
 params.supermatrix_mode = false // Whether to build a supermatrix
 params.target_species = null // File path to target species list for supermatrix concatenation
-params.astral_mode = false // Whether to run ASTRAL for coalescent species tree inference
+params.coalescent_mode = false // Whether to run ASTRAL for coalescent species tree inference
 bin = "$baseDir/bin"
 
 // Default configuration
@@ -1287,7 +1287,7 @@ workflow {
     }
     
     // Run ASTRAL if the coalescent mode is enabled
-    if (params.astral_mode) {
+    if (params.coalescent_mode) {
         def collected_tree_files = build.out.output_tree.collect()
         runAstral(collected_tree_files)
     }
