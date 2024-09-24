@@ -1046,7 +1046,7 @@ process build {
     def aln_file_path = Paths.get(params.output, "${aln_name}-${params.aligner}-${params.trimmer}-${params.tree_builder}", clean_aln_file.name).toFile()
 
     // Initial check for file existence and readability
-    //println "Checking file existence and readability: ${aln_file_path.absolutePath}"
+    println "Checking file existence and readability: ${aln_file_path.absolutePath}"
     def fileExists = waitForFile(aln_file_path)
     def fileReadable = aln_file_path.canRead()
 
