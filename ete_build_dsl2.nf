@@ -9,6 +9,8 @@ params.thread = 4
 params.aligner = "none" // "mafft"
 params.trimmer = "none" // "trimal"
 params.tree_builder = "none" // "fasttree"
+params.executor = 'local' // Default to local, change to 'slurm' for SLURM execution
+params.queue = 'fast'
 params.memory = '4GB'
 params.time = '1h'
 params.customConfig = null
@@ -284,15 +286,6 @@ def getTcoffeeOptions(alignConfig) {
     def options = "-n_core=${params.thread}"
     return options
 }
-
-// Function to get Clustal Omega options
-// def getClustaloOptions(alignConfig) {
-//     def options = ""
-//     options += alignConfig.dealign ? " --dealign" : ""
-//     options += alignConfig.mode == "full" ? " --full" : ""
-//     options += alignConfig.iterations ? " --iterations ${alignConfig.iterations}": ""
-//     return options
-// }
 
 def getClustaloOptions(alignConfig) {
     def options = ""
@@ -673,16 +666,6 @@ def getPhymlOptions(buildConfig, aln_type) {
 }
 
 
-// Function to get RAxML options
-// def getRaxmlOptions(buildConfig) {
-//     def options = ""
-//     options += buildConfig.algorithm ? "-f ${buildConfig.algorithm} " : ""
-//     options += buildConfig.r_seed ? "-p ${buildConfig.r_seed} " : ""
-//     options += buildConfig.model ? "-m ${buildConfig.model} " : ""
-//     options += buildConfig.bootstrap ? "-b ${buildConfig.bootstrap} " : ""
-//     return options
-// }
-
 def getRaxmlOptions(buildConfig, aln_type){
     def options = ""
     if (buildConfig.algorithm) {
@@ -826,6 +809,8 @@ process align {
     maxRetries 2
     publishDir path: { "${params.output}/${fasta_name}-${params.aligner}-${params.trimmer}-${params.tree_builder}" }, mode: 'copy'
 
+    executor params.executor
+
     input:
     path fasta_file 
 
@@ -906,6 +891,8 @@ process trim {
     errorStrategy 'retry'
     maxRetries 2
     publishDir path: { "${params.output}/${fasta_name}-${params.aligner}-${params.trimmer}-${params.tree_builder}" }, mode: 'copy'
+
+    executor params.executor
 
     input:
     path aln_file 
@@ -1017,6 +1004,8 @@ process build {
     
     publishDir path: { "${params.output}/${fasta_name}-${params.aligner}-${params.trimmer}-${params.tree_builder}" }, mode: 'copy'
     
+    executor params.executor
+
     input:
     path clean_aln_file 
 
@@ -1061,7 +1050,7 @@ process build {
     def fileExists = waitForFile(aln_file_path)
     def fileReadable = aln_file_path.canRead()
 
-    if (!fileExists || !fileReadable) {
+    if (!fileExists) {
         throw new Exception("File is either not found or not readable after retries: ${aln_file_path.absolutePath}")
     }
 

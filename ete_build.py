@@ -48,35 +48,33 @@ params.trimmer = '{args.trimmer}'
 params.tree_builder = '{args.tree_builder}'
 params.memory = '{args.memory}'
 params.time = '{args.time}'
+params.queue = '{args.slurm_partition if args.mode == "slurm" else ""}'
+params.executor = '{args.mode}' // local or slurm
 """
 
-    # Add profile-specific configurations
-    if args.mode == "slurm":
-        config_content += f"""
-profiles {{
-    slurm {{
-        process {{
-            executor = 'slurm'
-            queue = '{args.slurm_partition}'
-            time = '{args.time}'
-            memory = '{args.memory}'
-            cpus = {args.cpus}
-        }}
+    # Add process-specific configurations
+    config_content += f"""
+process {{
+    withName: 'align' {{
+        executor = params.executor
+        queue = params.queue // SLURM queue name
+        time = params.time // SLURM time allocation
+        memory = params.memory // SLURM memory allocation
+    }}
+    withName: 'trim' {{
+        executor = params.executor
+        queue = params.queue
+        time = params.time
+        memory = params.memory
+    }}
+    withName: 'build' {{
+        executor = params.executor
+        queue = params.queue
+        time = params.time
+        memory = params.memory
     }}
 }}
 """
-    elif args.mode == "local":
-        config_content += """
-profiles {
-    local {
-        process {
-            executor = 'local'
-        }
-    }
-}
-"""
-    else:
-        raise ValueError(f"Unsupported execution mode: {args.mode}")
 
     # Write to the nextflow.config file
     with open("nextflow.config", "w") as f:
@@ -258,7 +256,7 @@ def run_nextflow(mode, input_file, output_dir, aligner, trimmer, tree_builder, m
 
     if resume:
         cmd.append("-resume")
-    print(cmd)
+    print(" ".join(cmd))
     process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
     while True:
         output = process.stdout.readline()
@@ -300,6 +298,18 @@ def main():
     # Validate SLURM-specific arguments
     if args.mode == "slurm" and not args.slurm_partition:
         parser.error("--slurm-partition is required when mode is slurm.")
+    
+    # Ensure that the output, log, and work directories exist
+    for directory in [args.output, args.work_dir]:
+        if not os.path.exists(directory):
+            print(f"Directory {directory} does not exist. Creating it now.")
+            os.makedirs(directory, exist_ok=True)
+
+    # Convert paths to absolute paths
+    args.input = os.path.abspath(args.input)
+    args.output = os.path.abspath(args.output)
+    args.work_dir = os.path.abspath(args.work_dir)
+    args.log = os.path.abspath(args.log)
     
     # If a predefined workflow is selected, override the tool choices
     if args.workflow:
