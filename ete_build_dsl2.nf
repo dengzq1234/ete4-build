@@ -1165,7 +1165,7 @@ process runAstral {
     // Concatenate all collected gene tree files into a single file for ASTRAL input
     """
     echo "Collecting gene trees into ${collected_tree_files.join(" ")} "gene_trees.tre""
-    python ${bin}/gene2sp_tree.py ${collected_tree_files.join(" ")} > gene_trees.tre
+    python ${bin}/gene2sp_tree.py ${collected_tree_files.join(" ")} --sp_delimiter '|' --sp_field 0 > gene_trees.tre
     astral -i gene_trees.tre -o species_tree.tre > astral.log 2>&1 
     """
 }

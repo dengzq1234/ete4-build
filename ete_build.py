@@ -300,17 +300,17 @@ def main():
         parser.error("--slurm-partition is required when mode is slurm.")
     
     # Ensure that the output, log, and work directories exist
-    for directory in [args.output, args.work_dir]:
-        if not os.path.exists(directory):
-            print(f"Directory {directory} does not exist. Creating it now.")
-            os.makedirs(directory, exist_ok=True)
+    
+    if not os.path.exists(args.output):
+        print(f"Directory {args.output} does not exist. Creating it now.")
+        os.makedirs(args.output, exist_ok=True)
 
     # Convert paths to absolute paths
     args.input = os.path.abspath(args.input)
     args.output = os.path.abspath(args.output)
-    args.work_dir = os.path.abspath(args.work_dir)
-    args.log = os.path.abspath(args.log)
-    
+    work_dir = os.path.join(os.path.abspath(args.output), "work/")
+    log_path = os.path.join(os.path.abspath(args.output), ".nextflow.log")
+
     # If a predefined workflow is selected, override the tool choices
     if args.workflow:
         workflow_params = PREDEFINED_WORKFLOWS[args.workflow]
@@ -321,7 +321,7 @@ def main():
     # Generate the Nextflow config AFTER setting the workflow-specific parameters
     generate_nextflow_config(args)
 
-    run_nextflow(args.mode, args.input, args.output, args.aligner, args.trimmer, args.tree_builder, args.memory, args.cpus, args.log, args.work_dir, args.supermatrix, args.target_species, args.coalescent, args.config, args.resume, args.script)
+    run_nextflow(args.mode, args.input, args.output, args.aligner, args.trimmer, args.tree_builder, args.memory, args.cpus, log_path, work_dir, args.supermatrix, args.target_species, args.coalescent, args.config, args.resume, args.script)
 
 if __name__ == "__main__":
     main()
