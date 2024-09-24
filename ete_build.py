@@ -289,8 +289,6 @@ def main():
     parser.add_argument("--tree_builder", default="fasttree", help="Tree building tool.")
     parser.add_argument("--workflow", help="Select a predefined workflow.") #choices=list(PREDEFINED_WORKFLOWS.keys()),
     parser.add_argument("--resume", action="store_true", help="Resume from the last failed step.")
-    parser.add_argument("--log", required=True, help="Log file location.")  # Log file argument
-    parser.add_argument("--work-dir", required=True, help="Work directory location.")  # Work directory argument
     parser.add_argument("--config", help="Custom workflow config file.")
 
     args = parser.parse_args()
