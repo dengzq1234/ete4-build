@@ -48,35 +48,33 @@ params.trimmer = '{args.trimmer}'
 params.tree_builder = '{args.tree_builder}'
 params.memory = '{args.memory}'
 params.time = '{args.time}'
+params.queue = '{args.slurm_partition if args.mode == "slurm" else ""}'
+params.executor = '{args.mode}' // local or slurm
 """
 
-    # Add profile-specific configurations
-    if args.mode == "slurm":
-        config_content += f"""
-profiles {{
-    slurm {{
-        process {{
-            executor = 'slurm'
-            queue = '{args.slurm_partition}'
-            time = '{args.time}'
-            memory = '{args.memory}'
-            cpus = {args.cpus}
-        }}
+    # Add process-specific configurations
+    config_content += f"""
+process {{
+    withName: 'align' {{
+        executor = params.executor
+        queue = params.queue // SLURM queue name
+        time = params.time // SLURM time allocation
+        memory = params.memory // SLURM memory allocation
+    }}
+    withName: 'trim' {{
+        executor = params.executor
+        queue = params.queue
+        time = params.time
+        memory = params.memory
+    }}
+    withName: 'build' {{
+        executor = params.executor
+        queue = params.queue
+        time = params.time
+        memory = params.memory
     }}
 }}
 """
-    elif args.mode == "local":
-        config_content += """
-profiles {
-    local {
-        process {
-            executor = 'local'
-        }
-    }
-}
-"""
-    else:
-        raise ValueError(f"Unsupported execution mode: {args.mode}")
 
     # Write to the nextflow.config file
     with open("nextflow.config", "w") as f:
@@ -258,7 +256,7 @@ def run_nextflow(mode, input_file, output_dir, aligner, trimmer, tree_builder, m
 
     if resume:
         cmd.append("-resume")
-    print(cmd)
+    print(" ".join(cmd))
     process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
     while True:
         output = process.stdout.readline()
@@ -291,8 +289,6 @@ def main():
     parser.add_argument("--tree_builder", default="fasttree", help="Tree building tool.")
     parser.add_argument("--workflow", help="Select a predefined workflow.") #choices=list(PREDEFINED_WORKFLOWS.keys()),
     parser.add_argument("--resume", action="store_true", help="Resume from the last failed step.")
-    parser.add_argument("--log", required=True, help="Log file location.")  # Log file argument
-    parser.add_argument("--work-dir", required=True, help="Work directory location.")  # Work directory argument
     parser.add_argument("--config", help="Custom workflow config file.")
 
     args = parser.parse_args()
@@ -301,6 +297,18 @@ def main():
     if args.mode == "slurm" and not args.slurm_partition:
         parser.error("--slurm-partition is required when mode is slurm.")
     
+    # Ensure that the output, log, and work directories exist
+    
+    if not os.path.exists(args.output):
+        print(f"Directory {args.output} does not exist. Creating it now.")
+        os.makedirs(args.output, exist_ok=True)
+
+    # Convert paths to absolute paths
+    args.input = os.path.abspath(args.input)
+    args.output = os.path.abspath(args.output)
+    work_dir = os.path.join(os.path.abspath(args.output), "work/")
+    log_path = os.path.join(os.path.abspath(args.output), ".nextflow.log")
+
     # If a predefined workflow is selected, override the tool choices
     if args.workflow:
         workflow_params = PREDEFINED_WORKFLOWS[args.workflow]
@@ -311,7 +319,7 @@ def main():
     # Generate the Nextflow config AFTER setting the workflow-specific parameters
     generate_nextflow_config(args)
 
-    run_nextflow(args.mode, args.input, args.output, args.aligner, args.trimmer, args.tree_builder, args.memory, args.cpus, args.log, args.work_dir, args.supermatrix, args.target_species, args.coalescent, args.config, args.resume, args.script)
+    run_nextflow(args.mode, args.input, args.output, args.aligner, args.trimmer, args.tree_builder, args.memory, args.cpus, log_path, work_dir, args.supermatrix, args.target_species, args.coalescent, args.config, args.resume, args.script)
 
 if __name__ == "__main__":
     main()
