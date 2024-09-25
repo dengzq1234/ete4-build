@@ -93,26 +93,26 @@ def defaultConfig = [
             model: "TESTONLY",
             tbe: false,  // Disable TBE
         ],
-        mrbayes:[
-            name: "mb",
-        ],
-        // mrbayes: [
+        // mrbayes:[
         //     name: "mb",
-        //     ngen: 100000,           // Number of generations
-        //     nchains: 4,             // Number of chains
-        //     nruns: 2,               // Number of runs
-        //     nst: 1,                // Substitution model for dna
-        //     rates: "equal",      // Rates model for dna Equal/Gamma/LNorm/Propinv/Invgamma/Adgamma/Kmixture 
-        //     aamodelpr: "fixed(wag)", // Amino acid model
-        //     diagnfreq: 5000,        // Frequency of diagnosing
-        //     samplefreq: 500,        // Frequency of sampling
-        //     printfreq: 1000,         // Frequency of printing
-        //     burninfrac: 0.25,       // Burn-in fraction
-        //     append: "no",           // Append to last checkpoint
-        //     stoprule: "no",
-        //     seed: 1726956368,                // Seed
-        //     swapseed: 1726956368             // Swap seed
-        // ]
+        // ],
+        mrbayes: [
+            name: "mb",
+            ngen: 100000,           // Number of generations
+            nchains: 4,             // Number of chains
+            nruns: 2,               // Number of runs
+            nst: 1,                // Substitution model for dna
+            rates: "equal",      // Rates model for dna Equal/Gamma/LNorm/Propinv/Invgamma/Adgamma/Kmixture 
+            aamodelpr: "fixed(wag)", // Amino acid model
+            diagnfreq: 5000,        // Frequency of diagnosing
+            samplefreq: 500,        // Frequency of sampling
+            printfreq: 1000,         // Frequency of printing
+            burninfrac: 0.25,       // Burn-in fraction
+            append: "no",           // Append to last checkpoint
+            stoprule: "no",
+            seed: 1726956368,                // Seed
+            swapseed: 1726956368             // Swap seed
+        ],
         astral: [
             name: "astral",
             //-a: "species_map.txt",  // Path to the species mapping file, if needed
