@@ -52,22 +52,30 @@ params.queue = '{args.slurm_partition if args.mode == "slurm" else ""}'
 params.executor = '{args.mode}' // local or slurm
 """
 
+    # Define clusterOptions only if mode is 'slurm'
+    cluster_options_align = f"clusterOptions = '--error={args.output}/logs/slurm_align_%j.err --output={args.output}/logs/slurm_align_%j.out'" if args.mode == "slurm" else ""
+    cluster_options_trim = f"clusterOptions = '--error={args.output}/logs/slurm_trim_%j.err --output={args.output}/logs/slurm_trim_%j.out'" if args.mode == "slurm" else ""
+    cluster_options_build = f"clusterOptions = '--error={args.output}/logs/slurm_build_%j.err --output={args.output}/logs/slurm_build_%j.out'" if args.mode == "slurm" else ""
+
     # Add process-specific configurations
     config_content += f"""
 process {{
     withName: 'align' {{
+        {cluster_options_align}
         executor = params.executor
         queue = params.queue // SLURM queue name
         time = params.time // SLURM time allocation
         memory = params.memory // SLURM memory allocation
     }}
     withName: 'trim' {{
+        {cluster_options_trim}
         executor = params.executor
         queue = params.queue
         time = params.time
         memory = params.memory
     }}
     withName: 'build' {{
+        {cluster_options_build}
         executor = params.executor
         queue = params.queue
         time = params.time
@@ -76,7 +84,7 @@ process {{
 }}
 """
 
-    # Write to the nextflow.config file
+    # Write the configuration to a file
     with open("nextflow.config", "w") as f:
         f.write(config_content)
 

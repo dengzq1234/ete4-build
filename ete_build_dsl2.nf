@@ -760,10 +760,8 @@ def detectAlignmentType(alignmentFile) {
     // Check if the sequence data matches nucleotide or amino acid patterns
     if (sequenceData ==~ nt_regex) {
         return "nt"
-    } else if (sequenceData ==~ aa_regex) {
-        return "aa"
     } else {
-        throw new Exception("Cannot determine alignment type. Neither nucleotide nor amino acid patterns match.")
+        return "aa"
     }
 }
 
@@ -806,7 +804,7 @@ process align {
     memory params.memory 
     time params.time
     errorStrategy 'retry'
-    maxRetries 2
+    maxRetries 3
     publishDir path: { "${params.output}/${fasta_name}-${params.aligner}-${params.trimmer}-${params.tree_builder}" }, mode: 'copy'
 
     executor params.executor
@@ -819,6 +817,7 @@ process align {
     path "*.*", emit: aln_files
     stdout emit: align_stdout
     path "align.err", emit: align_err
+    path "${fasta_name}_aln_timing.log"
 
     script:
     fasta_name = fasta_file.baseName
@@ -868,7 +867,7 @@ process align {
         start_time=\$(date +%s)
         echo "run ${alignCmd} with options: $alignOptions"
         if [ "${params.aligner}" == "mafft" ]; then
-            ${alignCmd} ${alignOptions} --thread ${params.thread} $fasta_file > ${fasta_name}.aln.faa 2> align.err
+            ${alignCmd} ${alignOptions} --anysymbol --thread ${params.thread} $fasta_file > ${fasta_name}.aln.faa 2> align.err
         elif [ "${params.aligner}" == "muscle" ]; then
             ${alignCmd} -align $fasta_file -output ${fasta_name}.aln.faa ${alignOptions} 2> align.err
         elif [ "${params.aligner}" == "tcoffee" ]; then
@@ -879,7 +878,7 @@ process align {
             ${alignCmd} ${alignOptions} -t ${params.thread} $fasta_file ${fasta_name}.aln.faa 2> align.err
         fi
         end_time=\$(date +%s)
-        echo "Alignment $fasta_file took \$((end_time - start_time)) seconds."
+        echo "Alignment $fasta_file took \$((end_time - start_time)) seconds." >> ${fasta_name}_aln_timing.log
         """
     }
 }
@@ -888,7 +887,7 @@ process trim {
     cpus params.thread
     memory params.memory
     time params.time
-    errorStrategy 'retry'
+    errorStrategy 'ignore'
     maxRetries 2
     publishDir path: { "${params.output}/${fasta_name}-${params.aligner}-${params.trimmer}-${params.tree_builder}" }, mode: 'copy'
 
@@ -999,8 +998,8 @@ process build {
     cpus params.thread
     memory params.memory
     time params.time
-    errorStrategy 'retry'
-    maxRetries 2
+    errorStrategy 'ignore'
+    maxRetries 3
     
     publishDir path: { "${params.output}/${fasta_name}-${params.aligner}-${params.trimmer}-${params.tree_builder}" }, mode: 'copy'
     
@@ -1014,6 +1013,7 @@ process build {
     path "*.*", emit: build_files
     path "build.err", emit: build_err
     stdout emit: build_stdout
+    path "${fasta_name}_treebuild_timing.log"
 
     script:
     //def aln_name = clean_aln_file.baseName.replace(".clean.alg", "")
@@ -1045,13 +1045,25 @@ process build {
     def aln_name = clean_aln_file.baseName.replace(".clean.alg", "")
     def aln_file_path = Paths.get(params.output, "${aln_name}-${params.aligner}-${params.trimmer}-${params.tree_builder}", clean_aln_file.name).toFile()
 
-    // Initial check for file existence and readability
+    // Debugging: Check the absolute path and current working directory
+    println "Current working directory: ${new File('.').absolutePath}"
     println "Checking file existence and readability: ${aln_file_path.absolutePath}"
-    def fileExists = waitForFile(aln_file_path)
-    def fileReadable = aln_file_path.canRead()
 
-    if (!fileExists) {
-        throw new Exception("File is either not found or not readable after retries: ${aln_file_path.absolutePath}")
+    // Retry mechanism to wait for file availability
+    def retries = 5
+    while (!aln_file_path.exists() && retries > 0) {
+        println "File not found, retrying in 2 seconds... (Attempt ${6 - retries})"
+        sleep(2000)
+        retries--
+    }
+
+    // Final checks
+    if (!aln_file_path.exists()) {
+        throw new Exception("File is not found: ${aln_file_path.absolutePath}")
+    } else if (!aln_file_path.canRead()) {
+        throw new Exception("File is found but cannot be read: ${aln_file_path.absolutePath}")
+    } else {
+        println "File exists and is readable: ${aln_file_path.absolutePath}"
     }
 
     //println "File is confirmed to exist and is readable: ${aln_file_path.absolutePath}"
@@ -1137,7 +1149,7 @@ process build {
         cp ${fasta_name}.clean.alg.nex.tre ${fasta_name}.output.tree  
     fi
     end_time=\$(date +%s)
-    echo "Tree building $fasta_name took \$((end_time - start_time)) seconds."
+    echo "Tree building $fasta_name took \$((end_time - start_time)) seconds." >> ${fasta_name}_treebuild_timing.log
     """
     }
 }
