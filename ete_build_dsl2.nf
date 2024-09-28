@@ -804,7 +804,7 @@ process align {
     memory params.memory 
     time params.time
     errorStrategy 'retry'
-    maxRetries 3
+    maxRetries 2
     publishDir path: { "${params.output}/${fasta_name}-${params.aligner}-${params.trimmer}-${params.tree_builder}" }, mode: 'copy'
 
     executor params.executor
@@ -862,8 +862,8 @@ process align {
 
         // Additional debug print for alignOptions
         // println "Align Options: ${alignOptions}"
+        //num_sequences=\$(grep -c '^>' $fasta_file)
         """
-        num_sequences=\$(grep -c '^>' $fasta_file)
         start_time=\$(date +%s)
         echo "run ${alignCmd} with options: $alignOptions"
         if [ "${params.aligner}" == "mafft" ]; then
@@ -998,8 +998,8 @@ process build {
     cpus params.thread
     memory params.memory
     time params.time
-    errorStrategy 'ignore'
-    maxRetries 3
+    errorStrategy 'retry'
+    maxRetries 2
     
     publishDir path: { "${params.output}/${fasta_name}-${params.aligner}-${params.trimmer}-${params.tree_builder}" }, mode: 'copy'
     
