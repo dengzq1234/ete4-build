@@ -770,7 +770,7 @@ process parseFasta {
     cpus 1
     memory '1GB'
     time '10m'
-    errorStrategy 'retry'
+    errorStrategy 'ignore'
     maxRetries 3
     publishDir path: { "${params.output}/${fasta_name}-${params.aligner}-${params.trimmer}-${params.tree_builder}" }, mode: 'copy'
 
@@ -803,7 +803,7 @@ process align {
     cpus params.thread
     memory params.memory 
     time params.time
-    errorStrategy 'retry'
+    errorStrategy 'ignore'
     maxRetries 2
     publishDir path: { "${params.output}/${fasta_name}-${params.aligner}-${params.trimmer}-${params.tree_builder}" }, mode: 'copy'
 
@@ -955,7 +955,7 @@ process concatSupermatrix {
     cpus params.thread
     memory params.memory
     time params.time
-    errorStrategy 'retry'
+    errorStrategy 'ignore'
     maxRetries 2
     publishDir path: { "${params.output}/supermatrix-${params.aligner}-${params.trimmer}-${params.tree_builder}" }, mode: 'copy'
 
@@ -994,11 +994,12 @@ def waitForFile(file, maxRetries = 5, delay = 5000) {
     }
 
 
+
 process build {
     cpus params.thread
     memory params.memory
     time params.time
-    errorStrategy 'retry'
+    errorStrategy 'ignore'
     maxRetries 2
     
     publishDir path: { "${params.output}/${fasta_name}-${params.aligner}-${params.trimmer}-${params.tree_builder}" }, mode: 'copy'
@@ -1158,7 +1159,7 @@ process runAstral {
     cpus params.thread
     memory params.memory
     time params.time
-    errorStrategy 'retry'
+    errorStrategy 'ignore'
     maxRetries 2
     publishDir path: { "${params.output}/astral-${params.aligner}-${params.trimmer}-${params.tree_builder}" }, mode: 'copy'
 
