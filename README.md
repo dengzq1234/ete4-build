@@ -4,7 +4,7 @@ This script provides a convenient way to run a Nextflow workflow with various co
 
 ## Requirements
 
-- Nextflow
+- Nextflow DSL2
 - Python >= 3.10
 
 ## Quick Start
