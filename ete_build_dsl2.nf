@@ -127,22 +127,6 @@ def deepCopy(map) {
 }
 
 // Function to load and merge custom config
-// def loadAndMergeConfig(defaultConfig, customConfigFile) {
-//     def config = [:]  // Start with an empty map
-
-//     if (customConfigFile) {
-//         // Load the custom configuration first
-//         def customConfig = new groovy.json.JsonSlurper().parseText(file(customConfigFile).text)
-//         config = config + customConfig
-//         // println "check ${customConfig}"
-//     } 
-//     // Then add the default configuration, so customConfig has priority
-//     config = defaultConfig + config
-    
-//     //println "workflow Config: ${config}"
-//     return config
-// }
-// Function to load and merge custom config
 def loadAndMergeConfig(defaultConfig, customConfigFile) {
     def config = [:]  // Start with an empty map
 
@@ -189,12 +173,7 @@ def loadAndMergeConfig(defaultConfig, customConfigFile) {
 // Ensure the configuration is loaded before any processes run
 def jsonConfig = loadAndMergeConfig(defaultConfig, params.customConfig)
 
-// Load custom config if provided old
-// def jsonConfig = defaultConfig
-// if (params.customConfig) {
-//     def customConfig = new groovy.json.JsonSlurper().parseText(file(params.customConfig).text)
-//     jsonConfig = defaultConfig + customConfig
-// }
+
 
 // Handle input files or directory
 FASTA_files = file(params.input).isDirectory() ? Channel.fromPath("${params.input}/*.{fa,faa,fasta}") : Channel.fromPath(params.input)
@@ -1356,7 +1335,3 @@ workflow {
     trim.out.trim_stdout.view { it -> println("[trim] ${it}") }
     build.out.build_stdout.view { it -> println("[build] ${it}") }
 }
-
-// workflow.onComplete {
-//     file(".nextflow.log").moveTo("${params.output}/.nextflow.log")
-// }
