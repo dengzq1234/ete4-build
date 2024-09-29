@@ -1,4 +1,4 @@
-# Scalable Phylogenetic Tree Inference Nextflow Workflow Runner
+# Phylogenetic Tree Inference Nextflow Workflow
 
 This script provides a convenient way to run a Nextflow workflow with various configurations and parameters.
 
