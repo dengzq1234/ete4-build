@@ -7,7 +7,7 @@ def main():
     # Set up argument parser
     parser = argparse.ArgumentParser(description="Modify leaf names of phylogenetic trees based on specified delimiter and field.")
     parser.add_argument('files', nargs='+', help="Input tree files.")
-    parser.add_argument('--sp_delimiter', '-d', default='|', help="Delimiter to split leaf names (default: '|').")
+    parser.add_argument('--sp_delimiter', '-d', default='_', help="Delimiter to split leaf names (default: '|').")
     parser.add_argument('--sp_field', '-f', type=int, default=0, help="Field index to extract after splitting (default: 0).")
     
     # Parse arguments

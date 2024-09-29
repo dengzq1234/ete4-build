@@ -218,7 +218,10 @@ def convert_cfg_to_json(cfg_file, aligner, trimmer, tree_builder):
                     config["tree_builder"][section_data["_app"]] = section_data
     return config
 
-def run_nextflow(mode, input_file, output_dir, aligner, trimmer, tree_builder, memory, threads, log_file, work_dir, supermatrix=False, target_species=None, coalescent=False, workflow_config=None, resume=False, script="ete_build_dsl2.nf"):
+def run_nextflow(mode, input_file, output_dir, aligner, \
+    trimmer, tree_builder, memory, threads, log_file, work_dir, \
+    supermatrix=False, target_species=None, coalescent=False, separator='_', field=0,
+    workflow_config=None, resume=False, script="ete_build_dsl2.nf"):
     if workflow_config and workflow_config.endswith(".cfg"):
         cfg_json = convert_cfg_to_json(workflow_config, aligner, trimmer, tree_builder)
         json_file = workflow_config.replace(".cfg", ".json")
@@ -249,7 +252,9 @@ def run_nextflow(mode, input_file, output_dir, aligner, trimmer, tree_builder, m
         "--tree_builder", tree_builder,
         "--memory", memory,
         "--thread", str(threads),
-        "-work-dir", work_dir
+        "-work-dir", work_dir,
+        "--spanme-delimiter", separator,
+        "--spname-field", field
     ]
 
     if workflow_config:
@@ -298,7 +303,8 @@ def main():
     parser.add_argument("--workflow", help="Select a predefined workflow.") #choices=list(PREDEFINED_WORKFLOWS.keys()),
     parser.add_argument("--resume", action="store_true", help="Resume from the last failed step.")
     parser.add_argument("--config", help="Custom workflow config file.")
-
+    parser.add_argument('--spname-delimiter', dest='separator', help='Separator for species code in sequence names.', default='|')
+    parser.add_argument('--spname-field', dest='field', help='Field number for species code in sequence names.', default='0')
     args = parser.parse_args()
     
     # Validate SLURM-specific arguments
@@ -327,7 +333,10 @@ def main():
     # Generate the Nextflow config AFTER setting the workflow-specific parameters
     generate_nextflow_config(args)
 
-    run_nextflow(args.mode, args.input, args.output, args.aligner, args.trimmer, args.tree_builder, args.memory, args.cpus, log_path, work_dir, args.supermatrix, args.target_species, args.coalescent, args.config, args.resume, args.script)
+    run_nextflow(args.mode, args.input, args.output, args.aligner, \
+    args.trimmer, args.tree_builder, args.memory, args.cpus, log_path, \
+    work_dir, args.supermatrix, args.target_species, args.coalescent, args.separator, args.field, \
+    args.config, args.resume, args.script)
 
 if __name__ == "__main__":
     main()

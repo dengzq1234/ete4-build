@@ -4,12 +4,12 @@
             "name": "mafft",
             "op": 1.53,
             "ep": 0.123,
-            "maxiterate": 0,
+            "maxiterate": 1000,
             "matrix": "",
             "blosum_coefficient": 62,
             "pam_coefficient": 80,
-            "auto": true,
-            "localpair": false,
+            "auto": false,
+            "localpair": true,
             "globalpair": false,
             "genafpair": false,
             "retree": 2,
@@ -17,6 +17,29 @@
             "parttree": false
         }
     },
-    "trimmer": {},
-    "tree_builder": {}
+    "trimmer": {
+        "trimal": {
+            "name": "trimal",
+            "gt": null,
+            "st": null,
+            "ct": null,
+            "w": null,
+            "gappyout": false,
+            "strictplus": false,
+            "automated1": false
+        }
+    },
+    "tree_builder": {
+        "fasttree": {
+            "name": "fasttree",
+            "aa_model": "JTT",
+            "nt_model": "JC",
+            "gamma": false,
+            "bootstrap": 1000,
+            "pseudo": true,
+            "spr": 4,
+            "mlacc": 2,
+            "slownni": true
+        }
+    }
 }

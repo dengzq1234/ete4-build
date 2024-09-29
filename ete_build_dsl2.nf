@@ -18,6 +18,8 @@ params.supermatrix_mode = false // Whether to build a supermatrix
 params.target_species = null // File path to target species list for supermatrix concatenation
 params.coalescent_mode = false // Whether to run ASTRAL for coalescent species tree inference
 params.clearall = true
+params.spname_delimiter = '_'
+params.spname_field = '0'
 bin = "$baseDir/bin"
 
 // Default configuration
@@ -1015,9 +1017,8 @@ process concatSupermatrix {
     // Debug: Print the collected alignment files for verification
     println "Collected alignment files for supermatrix concatenation:"
     clean_aln_files.each { println it.toString() }
-
     """
-    python ${bin}/concat_aln.py -a ${clean_aln_files.join(" ")} --taxa ${targetSpeciesFile} -o supermatrix.clean.alg.faa -p partition_file.txt
+    python ${bin}/concat_aln.py -a ${clean_aln_files.join(" ")} --taxa ${targetSpeciesFile} --spname-delimiter ${params.spname_delimiter} --spname-field ${params.spname_field} -o supermatrix.clean.alg.faa -p partition_file.txt
     """
 }
 
@@ -1191,7 +1192,7 @@ process runAstral {
     // Concatenate all collected gene tree files into a single file for ASTRAL input
     """
     echo "Collecting gene trees into ${collected_tree_files.join(" ")} "gene_trees.tre""
-    python ${bin}/gene2sp_tree.py ${collected_tree_files.join(" ")} --sp_delimiter '|' --sp_field 0 > gene_trees.tre
+    python ${bin}/gene2sp_tree.py ${collected_tree_files.join(" ")} --sp_delimiter '${params.spname_delimiter}' --sp_field ${params.spname_field}  > gene_trees.tre
     astral -i gene_trees.tre -o species_tree.tre > astral.log 2>&1 
     """
 }
