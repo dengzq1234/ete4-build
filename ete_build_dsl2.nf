@@ -17,6 +17,7 @@ params.customConfig = null
 params.supermatrix_mode = false // Whether to build a supermatrix
 params.target_species = null // File path to target species list for supermatrix concatenation
 params.coalescent_mode = false // Whether to run ASTRAL for coalescent species tree inference
+params.clearall = true
 bin = "$baseDir/bin"
 
 // Default configuration
@@ -722,10 +723,28 @@ def filterUsedTreeBuilderConfig(buildConfig) {
     def usedTreeBuilderConfig = buildConfig.clone()
     return usedTreeBuilderConfig
 }
-
 def detectAlignmentType(alignmentFile) {
-    // Read the alignment file as text
-    def lines = file(alignmentFile).readLines()
+    println "Checking alignment file: ${alignmentFile}"
+
+    // Ensure alignmentFile is treated as a Path object
+    int retryCount = 5
+    def lines = []
+    
+    while (retryCount > 0) {
+        try {
+            lines = alignmentFile.readLines()  // Try reading the file
+            println "Successfully read file: ${alignmentFile}"
+            break
+        } catch (Exception e) {
+            println "Error reading file: ${e.message}, retrying..."
+            retryCount--
+            sleep(2000)  // Wait for 2 seconds before retrying
+        }
+    }
+
+    if (lines.isEmpty()) {
+        throw new Exception("Failed to read file after multiple retries: ${alignmentFile}")
+    }
 
     // Concatenate all sequence lines (ignoring lines that look like headers or gaps)
     def sequenceData = lines.findAll { line -> !line.startsWith(">") && line.trim() != "" }
@@ -744,6 +763,28 @@ def detectAlignmentType(alignmentFile) {
     }
 }
 
+// def detectAlignmentType(alignmentFile) {
+//     println "check this ${alignmentFile}"
+//     // Read the alignment file as text
+//     def lines = file(alignmentFile).readLines()
+//     println "good file! ${alignmentFile}"
+//     // Concatenate all sequence lines (ignoring lines that look like headers or gaps)
+//     def sequenceData = lines.findAll { line -> !line.startsWith(">") && line.trim() != "" }
+//                              .join("")
+//                              .replace("-", "")  // Ignore gaps ("-")
+
+//     // Regular expressions for nucleotides and amino acids (case-insensitive with (?i))
+//     def nt_regex = /(?i)^[ACGTURYKMSWBDHVN]+$/    // IUPAC codes for nucleotides
+//     def aa_regex = /(?i)^[ACDEFGHIKLMNPQRSTVWYBXZ]+$/ // IUPAC codes for amino acids
+    
+//     // Check if the sequence data matches nucleotide or amino acid patterns
+//     if (sequenceData ==~ nt_regex) {
+//         return "nt"
+//     } else {
+//         return "aa"
+//     }
+// }
+
 
 process parseFasta {
     cpus 1
@@ -751,7 +792,7 @@ process parseFasta {
     time '10m'
     errorStrategy 'ignore'
     maxRetries 3
-    publishDir path: { "${params.output}/${fasta_name}-${params.aligner}-${params.trimmer}-${params.tree_builder}" }, mode: 'copy'
+    publishDir path: { "${params.output}/${fasta_name}-${params.aligner}-${params.trimmer}-${params.tree_builder}" }, mode: 'copy', overwrite: true
 
     input:
     path fasta_file
@@ -784,9 +825,28 @@ process align {
     time params.time
     errorStrategy 'ignore'
     maxRetries 2
-    publishDir path: { "${params.output}/${fasta_name}-${params.aligner}-${params.trimmer}-${params.tree_builder}" }, mode: 'copy'
-
     executor params.executor
+
+    //publishDir path: { "${params.output}/${fasta_name}-${params.aligner}-${params.trimmer}-${params.tree_builder}" }, mode: 'copy', overwrite: true
+    publishDir path: { 
+        def dir = "${params.output}/${fasta_name}-${params.aligner}-${params.trimmer}-${params.tree_builder}"
+        
+        // If params.clearall is true and the workflow is not resumed, check if the directory exists and delete files
+        if (params.clearall && !workflow.resume) {
+            def dirPath = new File(dir)
+            if (dirPath.exists()) {
+                println "Clearing previous output files in: ${dir}"
+                dirPath.eachFile { file -> 
+                    if (!file.delete()) {
+                        println "Failed to delete: ${file.path}"
+                    }
+                }
+            } else {
+                println "Directory does not exist, nothing to clear."
+            }
+        }
+        return dir
+    }, mode: 'copy'
 
     input:
     path fasta_file 
@@ -868,7 +928,7 @@ process trim {
     time params.time
     errorStrategy 'ignore'
     maxRetries 2
-    publishDir path: { "${params.output}/${fasta_name}-${params.aligner}-${params.trimmer}-${params.tree_builder}" }, mode: 'copy'
+    publishDir path: { "${params.output}/${fasta_name}-${params.aligner}-${params.trimmer}-${params.tree_builder}" }, mode: 'copy', overwrite: true
 
     executor params.executor
 
@@ -934,9 +994,9 @@ process concatSupermatrix {
     cpus params.thread
     memory params.memory
     time params.time
-    errorStrategy 'ignore'
+    errorStrategy 'retry'
     maxRetries 2
-    publishDir path: { "${params.output}/supermatrix-${params.aligner}-${params.trimmer}-${params.tree_builder}" }, mode: 'copy'
+    publishDir path: { "${params.output}/supermatrix-${params.aligner}-${params.trimmer}-${params.tree_builder}" }, mode: 'copy', overwrite: true
 
     input:
     //path clean_aln_files 
@@ -972,8 +1032,6 @@ def waitForFile(file, maxRetries = 5, delay = 5000) {
         return file.exists()
     }
 
-
-
 process build {
     cpus params.thread
     memory params.memory
@@ -981,7 +1039,7 @@ process build {
     errorStrategy 'ignore'
     maxRetries 2
     
-    publishDir path: { "${params.output}/${fasta_name}-${params.aligner}-${params.trimmer}-${params.tree_builder}" }, mode: 'copy'
+    publishDir path: { "${params.output}/${fasta_name}-${params.aligner}-${params.trimmer}-${params.tree_builder}" }, mode: 'copy', overwrite: true
     
     executor params.executor
 
@@ -996,31 +1054,7 @@ process build {
     path "${fasta_name}_treebuild_timing.log"
 
     script:
-    //def aln_name = clean_aln_file.baseName.replace(".clean.alg", "")
-    
-    // Construct the correct file path for alignment
-    //def aln_file_path = Paths.get(params.output, "${aln_name}-${params.aligner}-${params.trimmer}-${params.tree_builder}", clean_aln_file.name).toString()
 
-    // // Check if the file exists before proceeding
-    // println "Checking file existence: ${aln_file_path}"
-    // def fileExists = new File(aln_file_path).exists()
-
-    // if (fileExists) {
-    //     println "File exists: ${aln_file_path}"
-    // } else {
-    //     println "File does not exist: ${aln_file_path}"
-    //     // Optional: introduce a wait to handle timing issues if necessary
-    //     sleep(10000) // Wait for 5 seconds to allow potential delays in file writing
-    //     fileExists = new File(aln_file_path).exists()
-    //     if (!fileExists) {
-    //         throw new Exception("File not found after waiting: ${aln_file_path}")
-    //     } else {
-    //         println "File exists after waiting: ${aln_file_path}"
-    //     }
-    // }
-    // println "Building tree for file: ${aln_file_path}"
-    // Function to wait and check for file existence
-    
     // Construct the correct file path for alignment
     def aln_name = clean_aln_file.baseName.replace(".clean.alg", "")
     def aln_file_path = Paths.get(params.output, "${aln_name}-${params.aligner}-${params.trimmer}-${params.tree_builder}", clean_aln_file.name).toFile()
@@ -1138,9 +1172,9 @@ process runAstral {
     cpus params.thread
     memory params.memory
     time params.time
-    errorStrategy 'ignore'
+    errorStrategy 'retry'
     maxRetries 2
-    publishDir path: { "${params.output}/astral-${params.aligner}-${params.trimmer}-${params.tree_builder}" }, mode: 'copy'
+    publishDir path: { "${params.output}/astral-${params.aligner}-${params.trimmer}-${params.tree_builder}" }, mode: 'copy', overwrite: true
 
     input:
     path collected_tree_files // Collect all gene tree files from the build process
@@ -1185,7 +1219,7 @@ process outputUsedConfig {
     output:
     path "used_config.json"
 
-    publishDir params.output, mode: 'copy'
+    publishDir params.output, mode: 'copy', overwrite: true
 
     script:
     // Apply filtering to the configurations
@@ -1219,7 +1253,7 @@ process outputUsedConfigAsCfg {
     output:
     path "used_config.cfg"
 
-    publishDir params.output, mode: 'copy'
+    publishDir params.output, mode: 'copy', overwrite: true
 
     script:
     def configToCfg = { toolType, toolConfigs ->
@@ -1301,14 +1335,6 @@ workflow {
     // process to to either gene tree or speceis tree
     align(parsed_files)
     trim(align.out.aln_seqs)
-    
-    // Perform alignment and collect outputs
-    // def aligned_files = align(parsed_files).collect()
-    // aligned_files.view { it -> println("[align] ${it}") }
-
-    // Perform trimming and collect outputs once all alignments are completed
-    // def trimmed_files = trim(align.out.aln_seqs).collect()
-    // trimmed_files.view { it -> println("[trim] ${it}") }
     
     if (params.supermatrix_mode) {
         // Collect all trimmed alignment files into a single set
